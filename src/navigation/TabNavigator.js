@@ -29,6 +29,8 @@ const TabContent = () => {
   const activeIdxRef = useRef(0);
   const translateX = useRef(new Animated.Value(0)).current;
   const goToRef = useRef(null);
+  const lastTapRef = useRef([0, 0, 0]);
+  const screenRefs = useRef([null, null, null]);
 
   useEffect(() => { activeIdxRef.current = activeIdx; }, [activeIdx]);
 
@@ -43,6 +45,15 @@ const TabContent = () => {
   }, [translateX, SCREEN_W]);
 
   goToRef.current = goTo;
+
+  const handleTabTap = useCallback((i) => {
+    const now = Date.now();
+    if (now - lastTapRef.current[i] < 300) {
+      screenRefs.current[i]?.scrollToTop?.();
+    }
+    lastTapRef.current[i] = now;
+    goToRef.current(i);
+  }, []);
 
   const pan = useRef(PanResponder.create({
     onMoveShouldSetPanResponder: (_, g) => {
@@ -71,7 +82,7 @@ const TabContent = () => {
         <Animated.View style={[st.slider, { transform: [{ translateX }], width: SCREEN_W * TAB_ITEMS.length }]}>
           {SCREENS.map((Screen, i) => (
             <View key={TAB_ITEMS[i].key} style={{ width: SCREEN_W, flex: 1 }}>
-              <Screen />
+              <Screen ref={el => { screenRefs.current[i] = el; }} />
             </View>
           ))}
         </Animated.View>
@@ -90,7 +101,7 @@ const TabContent = () => {
             const focused = activeIdx === i;
             return (
               <View key={tab.key} style={st.tabItem}>
-                <View style={st.tabBtn} onTouchEnd={() => goToRef.current(i)}>
+                <View style={st.tabBtn} onTouchEnd={() => handleTabTap(i)}>
                   <Ionicons
                     name={focused ? tab.focusedIcon : tab.unfocusedIcon}
                     size={28}

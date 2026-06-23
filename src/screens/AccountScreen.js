@@ -1,5 +1,5 @@
 // 模型管理页面 - 简洁卡片 + 启动自动测试 + token统计
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, Switch, Modal, KeyboardAvoidingView, Platform,
@@ -31,7 +31,7 @@ const PRESET_MODELS = [
   { id: 'doubao', name: '豆包 (火山引擎)', apiEndpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'ep-20250101000000-xxxxx', color: '#5856D6', format: 'openai', docUrl: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey', webSearch: true },
 ];
 
-const AccountScreen = () => {
+const AccountScreen = forwardRef((props, ref) => {
   const { isDark, themeMode, setThemeMode, colors, modelTestStatus, setModelTestStatus } = useTheme();
   const [accounts, setAccounts] = useState([]);
   const [editingModel, setEditingModel] = useState(null);
@@ -47,6 +47,10 @@ const AccountScreen = () => {
   const [pullShift, setPullShift] = useState(0);
   const testResultsRef = useRef({});
   const scrollRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
+  }));
 
   // 拖拽排序状态
   const [dragIdx, setDragIdx] = useState(-1);
@@ -575,7 +579,7 @@ const AccountScreen = () => {
       </Modal>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -609,7 +613,6 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.sm },
   actionText: { fontSize: 10, fontWeight: '500' },
   modalContainer: { flex: 1 },
-  // Token统计弹窗
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   tokenModal: { width: '85%', maxHeight: '70%', borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg },
   tokenModalTitle: { fontSize: FONTS.lg, fontWeight: '700', marginBottom: SPACING.md, textAlign: 'center' },

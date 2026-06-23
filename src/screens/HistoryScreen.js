@@ -1,5 +1,5 @@
 // 历史记录页面
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,17 @@ import { COLORS, FONTS, BORDER_RADIUS, SPACING, SHADOWS } from '../theme';
 import { getConversations, deleteConversation, clearAllConversations } from '../services/storage';
 import { useTheme } from '../theme/ThemeContext';
 
-const HistoryScreen = () => {
+const HistoryScreen = forwardRef((props, ref) => {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const [conversations, setConversations] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const lastLoadRef = useRef(0);
+  const flatListRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    scrollToTop: () => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }),
+  }));
 
   // 页面聚焦时加载，距上次加载超过2秒才重新加载
   useFocusEffect(useCallback(() => {
@@ -70,15 +75,13 @@ const HistoryScreen = () => {
   };
 
   const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-    if (diff < 60 * 1000) return '刚刚';
-    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}分钟前`;
-    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))}小时前`;
-    if (diff < 2 * 24 * 60 * 60 * 1000) return '昨天';
-    if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / (24 * 60 * 60 * 1000))}天前`;
-    return `${date.getMonth() + 1}月${date.getDate()}日`;
+    const d = new Date(timestamp);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${day} ${h}:${min}`;
   };
 
   const renderConversationItem = ({ item }) => (
@@ -155,6 +158,7 @@ const HistoryScreen = () => {
         )}
       </View>
       <FlatList
+        ref={flatListRef}
         data={conversations}
         renderItem={renderConversationItem}
         keyExtractor={(item) => item.id}
@@ -165,7 +169,7 @@ const HistoryScreen = () => {
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

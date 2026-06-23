@@ -1,5 +1,5 @@
 // 首页 - 对话式呈现：每轮问答串联，每轮独立滑块+标签
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useImperativeHandle } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -42,26 +42,40 @@ const AnimatedCard = ({ children, isFirst = false }) => {
   return <Animated.View style={{ opacity }}>{children}</Animated.View>;
 };
 
-const RoundBlock = ({ roundResponses, roundIdx, isCurrentRound, colors, getColor, onSelectModel, isFirstRound = false }) => {
-  const ref = useRef(null);
+const RoundBlock = React.forwardRef(({ roundResponses, roundIdx, isCurrentRound, colors, getColor, onSelectModel, isFirstRound = false }, ref) => {
+  const innerRef = useRef(null);
   const [idx, setIdx] = useState(0);
   const scrollOffsetRef = useRef(0);
-  // 按响应时间排序：最快的在前
+  const [displayResponses, setDisplayResponses] = useState(roundResponses);
+
+  // 暴露 addResponse 方法，内部更新不触发父组件 re-render
+  useImperativeHandle(ref, () => ({
+    addResponse: (resp) => {
+      setDisplayResponses(prev => {
+        const existing = prev.find(r => r.modelId === resp.modelId);
+        if (existing) {
+          Object.assign(existing, resp);
+          return [...prev];
+        }
+        return [...prev, resp];
+      });
+    },
+  }));
+
   const sortedResponses = useMemo(() => {
-    if (isCurrentRound) return roundResponses;
-    return [...roundResponses].sort((a, b) => {
+    if (isCurrentRound) return displayResponses;
+    return [...displayResponses].sort((a, b) => {
       if (a.responseTime == null) return 1;
       if (b.responseTime == null) return -1;
       return a.responseTime - b.responseTime;
     });
-  }, [roundResponses, isCurrentRound]);
+  }, [displayResponses, isCurrentRound]);
 
-  // 恢复水平滚动位置（防止re-render时闪烁复位）
-  useEffect(() => {
-    if (isCurrentRound && scrollOffsetRef.current > 0 && ref.current) {
-      ref.current.scrollTo({ x: scrollOffsetRef.current, animated: false });
+  useLayoutEffect(() => {
+    if (isCurrentRound && scrollOffsetRef.current > 0 && innerRef.current) {
+      innerRef.current.scrollTo({ x: scrollOffsetRef.current, animated: false });
     }
-  }, [roundResponses]);
+  }, [displayResponses.length]);
 
   const onScroll = (e) => {
     const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
@@ -84,15 +98,15 @@ const RoundBlock = ({ roundResponses, roundIdx, isCurrentRound, colors, getColor
           </TouchableOpacity>
         ))}
       </ScrollView>
-      <ScrollView ref={ref} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-        style={st.swiper} onMomentumScrollEnd={onScroll}>
+      <ScrollView ref={innerRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+        style={st.swiper} onMomentumScrollEnd={onScroll} removeClippedSubviews={false}>
         {sortedResponses.map((resp, i) => (
           <AnimatedCard key={resp.modelId} isFirst={isFirstRound && i === 0} index={0}>
           <View style={st.swiperPage}>
             <View style={[st.answerCard, { backgroundColor: colors.surface, borderColor: resp.success ? getColor(resp.modelId) : colors.error, borderWidth: 1.5 }]}>
               <View style={[st.cardHeader, { borderBottomColor: colors.borderLight }]}>
                 <View style={[st.cardDot, { backgroundColor: getColor(resp.modelId) }]} />
-                <Text style={[st.cardModelName, { color: colors.text }]} numberOfLines={1}>{resp.modelName}</Text>
+                <Text style={[st.cardModelName, { color: colors.text }]} numberOfLines={1}>{resp.model}</Text>
                 {resp.responseTime != null && <Text style={[st.cardTime, { color: colors.textTertiary }]}>{(resp.responseTime / 1000).toFixed(1)}s</Text>}
                 <TouchableOpacity style={st.cardCopy} onPress={() => { try { require('expo-clipboard').setStringAsync(resp.content || ''); Alert.alert('已复制'); } catch (e) {} }}>
                   <Ionicons name="copy-outline" size={14} color={colors.textSecondary} />
@@ -124,9 +138,14 @@ const RoundBlock = ({ roundResponses, roundIdx, isCurrentRound, colors, getColor
       </View>
     </View>
   );
-};
+});
 
-const MemoizedRoundBlock = React.memo(RoundBlock);
+const MemoizedRoundBlock = React.memo(RoundBlock, (prev, next) => {
+  return prev.roundResponses === next.roundResponses
+    && prev.roundIdx === next.roundIdx
+    && prev.isCurrentRound === next.isCurrentRound
+    && prev.isFirstRound === next.isFirstRound;
+});
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -147,11 +166,9 @@ const HomeScreen = () => {
   const [newsError, setNewsError] = useState(null);
   const [newsHidden, setNewsHidden] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
-  const [responses, setResponses] = useState([]);
   const [streamCount, setStreamCount] = useState(0);
-  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const responsesRef = useRef([]);
-  const flushTimerRef = useRef(null);
+  const liveRoundRef = useRef(null);
   const statusOpacity = useRef(new Animated.Value(1)).current;
   const answerTranslateY = useRef(new Animated.Value(0)).current;
   const lastTapRef = useRef(0);
@@ -159,44 +176,28 @@ const HomeScreen = () => {
   const prevContentHeightRef = useRef(0);
   const wasLoadingRef = useRef(false);
 
-  // 批量更新响应：累积变化，每500ms刷新一次，减少重渲染闪烁
+  // 批量更新响应：通过ref直接更新子组件内部状态，避免父组件re-render导致水平ScrollView重置
   const batchUpdateResponse = useCallback((partial) => {
     const existing = responsesRef.current.find(r => r.modelId === partial.modelId);
     if (existing) {
       Object.assign(existing, partial);
     } else {
-      responsesRef.current = [...responsesRef.current, partial];
+      responsesRef.current.push(partial);
     }
     setStreamCount(responsesRef.current.length);
-    if (!flushTimerRef.current) {
-      flushTimerRef.current = setTimeout(() => {
-        setResponses([...responsesRef.current]);
-        flushTimerRef.current = null;
-      }, 500);
-    }
+    liveRoundRef.current?.addResponse(partial);
   }, []);
 
   // 完成轮次时清空响应
   const clearResponses = useCallback(() => {
-    if (flushTimerRef.current) {
-      clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    }
     responsesRef.current = [];
-    setResponses([]);
     setStreamCount(0);
-    setIsAnimatingOut(false);
   }, []);
 
   // 保持 ref 同步
   useEffect(() => { chatItemsRef.current = chatItems; }, [chatItems]);
   useEffect(() => { convIdRef.current = convId; }, [convId]);
   useEffect(() => { chatTitleRef.current = chatTitle; }, [chatTitle]);
-
-  // 卸载时清理 flushTimer
-  useEffect(() => {
-    return () => { if (flushTimerRef.current) clearTimeout(flushTimerRef.current); };
-  }, []);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const chatScrollRef = useRef(null);
@@ -220,26 +221,18 @@ const HomeScreen = () => {
   useEffect(() => {
     if (wasLoadingRef.current && !isLoading) {
       wasLoadingRef.current = false;
-      const hasResponses = responsesRef.current.length > 0;
-      const hasPendingRound = pendingRoundRef.current != null;
-      if (hasResponses || hasPendingRound) {
-        setIsAnimatingOut(true);
-        Animated.parallel([
-          Animated.timing(statusOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-          Animated.timing(answerTranslateY, { toValue: 0, duration: 400, useNativeDriver: true }),
-        ]).start(() => {
-          const round = pendingRoundRef.current;
-          pendingRoundRef.current = null;
-          clearResponses();
-          setIsAnimatingOut(false);
-          if (round) {
-            setChatItems(prev => [...prev, round]);
-          }
-        });
+      const round = pendingRoundRef.current;
+      pendingRoundRef.current = null;
+      if (round) {
+        setChatItems(prev => [...prev, round]);
       }
+      // 延迟一帧清空响应，确保历史轮次先渲染再移除流式内容，避免闪烁
+      requestAnimationFrame(() => {
+        clearResponses();
+      });
+      Animated.timing(statusOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start();
     } else if (isLoading) {
       wasLoadingRef.current = true;
-      setIsAnimatingOut(false);
       statusOpacity.setValue(1);
       answerTranslateY.setValue(20);
     }
@@ -319,7 +312,7 @@ const HomeScreen = () => {
   const getColor = (modelId) => COLORS.modelColors[modelId] || '#888';
 
   const startNewConversation = () => {
-    setChatItems([]); clearResponses(); pendingRoundRef.current = null; setConvId(null); setChatTitle(''); setCompletedRoundCount(0); setIsAnimatingOut(false); convIdRef.current = null; chatTitleRef.current = '';
+    setChatItems([]); clearResponses(); pendingRoundRef.current = null; setConvId(null); setChatTitle(''); setCompletedRoundCount(0); convIdRef.current = null; chatTitleRef.current = '';
   };
 
   const handleSend = async (text) => {
@@ -496,18 +489,17 @@ const HomeScreen = () => {
             })}
 
             {isLoading && (
-              <Animated.View style={[st.statusBar, { backgroundColor: colors.surfaceSecondary, opacity: statusOpacity }]}>
-                <LoadingDots color={colors.primary} size={6} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[st.statusText, { color: colors.textSecondary }]}>{phase === 'searching' ? '🌐 搜索中...' : '🤔 思考中...'}</Text>
-                  {streamCount > 0 && <Text style={[st.statusProgress, { color: colors.textTertiary }]}>{streamCount}/{enabledCount}</Text>}
-                </View>
+              <Animated.View style={[st.statusBar, { opacity: statusOpacity }]}>
+                <LoadingDots color={colors.primary} size={4} />
+                <Text style={[st.statusText, { color: colors.textSecondary }]}>
+                  {phase === 'searching' ? '🌐 搜索中' : streamCount > 0 ? `${streamCount}/${enabledCount} 已响应` : '思考中'}
+                </Text>
               </Animated.View>
             )}
 
-            {(responses.length > 0 || isAnimatingOut) && (
-              <Animated.View style={{ transform: [{ translateY: answerTranslateY }], marginTop: 12 }}>
-                <MemoizedRoundBlock roundResponses={responses.length > 0 ? responses : responsesRef.current} roundIdx={completedRoundCount}
+            {streamCount > 0 && (
+              <Animated.View style={{ transform: [{ translateY: answerTranslateY }] }}>
+                <MemoizedRoundBlock ref={liveRoundRef} roundResponses={responsesRef.current} roundIdx={completedRoundCount}
                   isCurrentRound={true} colors={colors} getColor={getColor} />
               </Animated.View>
             )}
@@ -629,14 +621,13 @@ const st = StyleSheet.create({
   greeting: { fontSize: 22, fontWeight: '500', textAlign: 'center', marginBottom: SPACING.lg, lineHeight: 30 },
   subGreeting: { fontSize: FONTS.md, textAlign: 'center', marginBottom: SPACING.xl },
   modelRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SPACING.sm },
-  statusBar: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginHorizontal: SPACING.lg, marginTop: 4, marginBottom: 0, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, borderRadius: BORDER_RADIUS.md },
-  statusText: { fontSize: FONTS.sm, fontWeight: '500' },
-  statusProgress: { fontSize: FONTS.xs, marginTop: 2 },
+  statusBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.xs, marginHorizontal: SPACING.lg, marginTop: 0, marginBottom: 4, height: 20, paddingHorizontal: SPACING.md, borderRadius: BORDER_RADIUS.md },
+  statusText: { fontSize: FONTS.xs, fontWeight: '500' },
   // 每轮对话块
-  roundBlock: { marginTop: 4 },
-  roundLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: SPACING.md, marginBottom: SPACING.xs, borderRadius: BORDER_RADIUS.round, paddingVertical: 3, marginLeft: SPACING.lg },
+  roundBlock: { marginTop: 0 },
+  roundLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: SPACING.md, marginBottom: 2, borderRadius: BORDER_RADIUS.round, paddingVertical: 3, marginLeft: SPACING.lg },
   roundLabelText: { fontSize: 10, fontWeight: '500' },
-  indicatorBar: { maxHeight: 36, marginBottom: 12 },
+  indicatorBar: { maxHeight: 36, marginBottom: 2 },
   indicatorContent: { flexDirection: 'row', paddingHorizontal: SPACING.lg, gap: SPACING.xs },
   indicator: { paddingHorizontal: SPACING.sm, paddingVertical: 4, borderRadius: BORDER_RADIUS.round, borderWidth: 1 },
   indicatorText: { fontSize: FONTS.xs, fontWeight: '500' },

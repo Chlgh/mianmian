@@ -47,3 +47,18 @@
 - [x] AccountScreen主题切换按钮：日间选中=浅灰底+黑色边框+深灰图标
 - [x] 全局夜间模式颜色加深
 - [x] APK构建成功（74.7MB）
+
+## 本次会话新增
+- [x] 热点凌晨连接错误修复（fetchWithRetry + vvhan备用API）
+- [x] 下拉测试振动提醒（Vibration.vibrate）
+- [x] 引导弹窗更新为6项（含历史记录）
+- [x] AccountScreen回弹不再干扰常规滑动
+- [x] 首页间距统一为8px
+- [x] 模型卡片顶部显示API参数名称（resp.model）
+- [x] 历史记录时间格式改为YYYY-MM-DD HH:MM
+- [x] 双击tab回顶部（History+Account）
+- [x] AccountScreen styles恢复（启动闪退修复）
+- [x] 状态栏：高度20、居中、无底色、marginBottom=4
+- [x] RoundBlock改为React.forwardRef+useImperativeHandle
+- [ ] 模型答案闪烁问题（待修复：setDisplayResponses改为useRef+renderTrigger）
+- [ ] 状态栏内容垂直居中+匹配图标+更多状态文案
