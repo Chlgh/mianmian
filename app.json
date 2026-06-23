@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "AIALL",
+    "slug": "AIALL",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "aiall",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aiall.app"
+    },
+    "android": {
+      "package": "com.aiall.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.INTERNET"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "5b458e5d-e0b2-4cb1-bb82-5f7e861b0eff"
+      }
+    },
+    "owner": "chlghdk"
+  }
+}
