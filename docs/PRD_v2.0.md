@@ -1,4 +1,4 @@
-# AIALL 多模型 AI 搜索对比 App — 产品需求文档 v2.0
+# mianmian 多模型 AI 搜索对比 App — 产品需求文档 v2.0
 
 **文档版本**: 2.0  
 **更新日期**: 2026-06-21  
@@ -15,7 +15,7 @@
 | **热点新闻** | 百度/微博/知乎三源获取、24h去重、下拉刷新 | ✅ 已完成 |
 | **历史记录** | 对话存储、模型统计、轮数统计 | ✅ 已完成 |
 | **主题系统** | 浅色/深色/跟随系统三种模式（持久化） | ✅ 已完成 |
-| **首次引导** | 新用户操作指南、双击 AIALL 可再次查看 | ✅ 已完成 |
+| **首次引导** | 新用户操作指南、双击 mianmian 可再次查看 | ✅ 已完成 |
 | **模型测试** | 启动自动检测、手动下拉测试、状态图标同步 | ✅ 已完成 |
 
 ## 2. 交互规范
@@ -26,7 +26,7 @@
 | 浏览答案 | 横向滑动切换模型 | 模型标签栏高亮当前选中 |
 | 下拉刷新 | 在首页/模型管理页下拉 | 热点更新 / 模型重测 |
 | 首次启动 | App 打开自动弹出 | 使用指南弹窗，3步说明核心操作 |
-| 重新查看指南 | 双击首页"AIALL"文字 | 使用指南弹窗 |
+| 重新查看指南 | 双击首页"mianmian"文字 | 使用指南弹窗 |
 | 主题切换 | 模型管理页右上角按钮 | 三个按钮：☀ 浅色、🌙 深色、A 自动 |
 
 ## 3. 模型状态可视化
@@ -51,12 +51,12 @@
 
 | 数据 | 存储方式 | 过期策略 |
 |------|---------|---------|
-| 对话记录 | AsyncStorage `@aiall_conversations` | 30天自动清理 |
-| 账户配置 | AsyncStorage `@aiall_accounts` | 永久 |
-| 设置 | AsyncStorage `@aiall_settings` | 永久 |
-| 主题选择 | AsyncStorage `@aiall_theme_mode` | 永久 |
-| 引导标记 | AsyncStorage `@aiall_guide_shown` | 永久 |
-| 热点去重 | AsyncStorage `@aiall_shown_news` | 24小时过期 |
+| 对话记录 | AsyncStorage `@mianmian_conversations` | 30天自动清理 |
+| 账户配置 | AsyncStorage `@mianmian_accounts` | 永久 |
+| 设置 | AsyncStorage `@mianmian_settings` | 永久 |
+| 主题选择 | AsyncStorage `@mianmian_theme_mode` | 永久 |
+| 引导标记 | AsyncStorage `@mianmian_guide_shown` | 永久 |
+| 热点去重 | AsyncStorage `@mianmian_shown_news` | 24小时过期 |
 | 对话统计 | 启动时迁移计算 | 自动更新 |
 
 ## 6. API 支持

@@ -43,8 +43,6 @@ const AccountScreen = forwardRef((props, ref) => {
   const [totalRounds, setTotalRounds] = useState(0);
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [isPulling, setIsPulling] = useState(false);
-  const [pullShift, setPullShift] = useState(0);
   const testResultsRef = useRef({});
   const scrollRef = useRef(null);
 
@@ -63,7 +61,7 @@ const AccountScreen = forwardRef((props, ref) => {
 
   // 启动时静默测试所有模型连接（无UI提示，1小时内不重复测试）
   useEffect(() => {
-    const LAST_TEST_KEY = '@aiall_last_auto_test';
+    const LAST_TEST_KEY = '@mianmian_last_auto_test';
     AsyncStorage.getItem(LAST_TEST_KEY).then(lastTest => {
       const now = Date.now();
       if (lastTest && (now - parseInt(lastTest, 10)) < 3600000) return;
@@ -172,7 +170,7 @@ const AccountScreen = forwardRef((props, ref) => {
         setTokenUsage(s.tokenUsage || {});
       }
     } catch (e) {}
-    finally { setIsPulling(false); setPullShift(0); }
+    finally { setRefreshing(false); }
   };
 
   const persist = async (updated) => {
@@ -351,23 +349,7 @@ const AccountScreen = forwardRef((props, ref) => {
       {/* 可滑动模型列表 */}
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false} scrollEnabled={dragIdx < 0}
-        onScrollBeginDrag={(e) => {
-          if (e.nativeEvent.contentOffset.y <= 5) setIsPulling(true);
-        }}
-        onScroll={(e) => {
-          if (isPulling) {
-            const y = e.nativeEvent.contentOffset.y;
-            setPullShift(y < 0 ? Math.min(-y, 80) : 0);
-          }
-        }}
-        onScrollEndDrag={() => {
-          setIsPulling(false);
-          setPullShift(0);
-        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={isDark ? '#888888' : '#666666'} colors={[isDark ? '#FFFFFF' : '#000000']} progressBackgroundColor={isDark ? '#1A1A1A' : '#F0F0F0'} />}>
-        {isPulling && (
-          <Text style={[styles.sectionHint, { color: colors.textTertiary, transform: [{ translateY: pullShift * 0.3 }] }]}>下滑测试所有模型连接...</Text>
-        )}
 
         {accounts.map((model, index) => {
           const tr = testResults[model.id];

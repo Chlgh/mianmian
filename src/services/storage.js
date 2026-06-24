@@ -2,9 +2,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEYS = {
-  CONVERSATIONS: '@aiall_conversations',
-  ACCOUNTS: '@aiall_accounts',
-  SETTINGS: '@aiall_settings',
+  CONVERSATIONS: '@mianmian_conversations',
+  ACCOUNTS: '@mianmian_accounts',
+  SETTINGS: '@mianmian_settings',
 };
 
 // 写锁，防止并发读写竞态条件
@@ -215,7 +215,7 @@ export const saveSettings = async (settings) => {
 
 export const getGuideShown = async () => {
   try {
-    return await AsyncStorage.getItem('@aiall_guide_shown') === 'true';
+    return await AsyncStorage.getItem('@mianmian_guide_shown') === 'true';
   } catch {
     return false;
   }
@@ -223,8 +223,56 @@ export const getGuideShown = async () => {
 
 export const setGuideShown = async () => {
   try {
-    await AsyncStorage.setItem('@aiall_guide_shown', 'true');
+    await AsyncStorage.setItem('@mianmian_guide_shown', 'true');
   } catch {}
+};
+
+// ==================== aiall → mianmian 数据迁移 ====================
+
+const OLD_KEYS = {
+  CONVERSATIONS: '@aiall_conversations',
+  ACCOUNTS: '@aiall_accounts',
+  SETTINGS: '@aiall_settings',
+};
+
+export const migrateFromAiall = async () => {
+  try {
+    for (const [key, oldKey] of Object.entries(OLD_KEYS)) {
+      const newKey = KEYS[key];
+      const oldData = await AsyncStorage.getItem(oldKey);
+      if (oldData) {
+        const newData = await AsyncStorage.getItem(newKey);
+        if (!newData) {
+          await AsyncStorage.setItem(newKey, oldData);
+        }
+        await AsyncStorage.removeItem(oldKey);
+      }
+    }
+    const oldTheme = await AsyncStorage.getItem('@aiall_theme_mode');
+    if (oldTheme) {
+      const newTheme = await AsyncStorage.getItem('@mianmian_theme_mode');
+      if (!newTheme) {
+        await AsyncStorage.setItem('@mianmian_theme_mode', oldTheme);
+      }
+      await AsyncStorage.removeItem('@aiall_theme_mode');
+    }
+    const oldGuide = await AsyncStorage.getItem('@aiall_guide_shown');
+    if (oldGuide) {
+      const newGuide = await AsyncStorage.getItem('@mianmian_guide_shown');
+      if (!newGuide) {
+        await AsyncStorage.setItem('@mianmian_guide_shown', oldGuide);
+      }
+      await AsyncStorage.removeItem('@aiall_guide_shown');
+    }
+    const oldNews = await AsyncStorage.getItem('@aiall_shown_news');
+    if (oldNews) {
+      const newNews = await AsyncStorage.getItem('@mianmian_shown_news');
+      if (!newNews) {
+        await AsyncStorage.setItem('@mianmian_shown_news', oldNews);
+      }
+      await AsyncStorage.removeItem('@aiall_shown_news');
+    }
+  } catch (e) {}
 };
 
 export default {

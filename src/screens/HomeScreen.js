@@ -1,9 +1,9 @@
 // 首页 - 对话式呈现：每轮问答串联，每轮独立滑块+标签
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useImperativeHandle } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, useImperativeHandle } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
-  Animated, Dimensions, RefreshControl, Linking as RNLinking, Modal,
+  Animated, Dimensions, RefreshControl, Linking as RNLinking, Modal, BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +18,32 @@ import MessageBubble from '../components/MessageBubble';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 
 const SCREEN_W = Dimensions.get('window').width;
+
+// 逐条渐变入场的热点条目
+const StaggeredNewsItem = ({ item, index, colors, onPress }) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 250, useNativeDriver: true }),
+      ]).start();
+    }, index * 60);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      <TouchableOpacity
+        style={[st.newsItem, { backgroundColor: colors.surfaceSecondary, borderColor: colors.borderLight }]}
+        onPress={() => onPress(item.title)}
+        activeOpacity={0.7}>
+        <Text style={[st.newsItemTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
+        <Text style={[st.newsItemSource, { color: colors.textTertiary }]}>{item.platform}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 const CARD_H = 480;
 
 // 数字格式化：超过1万显示万，超过1亿显示亿，保留2位小数
@@ -32,30 +58,21 @@ const GREETINGS = [
   '🌟 今日宜提问', '💪 你的私人AI助理', '📚 一起来探索知识', '🎨 创造力从这里开始',
 ];
 
-// 动画包装器：isFirst=true时fade-in，否则无动画
-const AnimatedCard = ({ children, isFirst = false }) => {
-  if (!isFirst) return children;
-  const opacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-  }, []);
-  return <Animated.View style={{ opacity }}>{children}</Animated.View>;
-};
+
 
 const RoundBlock = React.forwardRef(({ roundResponses, roundIdx, isCurrentRound, colors, getColor, onSelectModel, isFirstRound = false }, ref) => {
   const innerRef = useRef(null);
   const [idx, setIdx] = useState(0);
-  const scrollOffsetRef = useRef(0);
-  const [displayResponses, setDisplayResponses] = useState(roundResponses);
+  const [responses, setResponses] = useState(roundResponses);
 
-  // 暴露 addResponse 方法，内部更新不触发父组件 re-render
   useImperativeHandle(ref, () => ({
     addResponse: (resp) => {
-      setDisplayResponses(prev => {
-        const existing = prev.find(r => r.modelId === resp.modelId);
-        if (existing) {
-          Object.assign(existing, resp);
-          return [...prev];
+      setResponses(prev => {
+        const idx = prev.findIndex(r => r.modelId === resp.modelId);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...resp };
+          return next;
         }
         return [...prev, resp];
       });
@@ -63,23 +80,16 @@ const RoundBlock = React.forwardRef(({ roundResponses, roundIdx, isCurrentRound,
   }));
 
   const sortedResponses = useMemo(() => {
-    if (isCurrentRound) return displayResponses;
-    return [...displayResponses].sort((a, b) => {
+    if (isCurrentRound) return responses;
+    return [...responses].sort((a, b) => {
       if (a.responseTime == null) return 1;
       if (b.responseTime == null) return -1;
       return a.responseTime - b.responseTime;
     });
-  }, [displayResponses, isCurrentRound]);
-
-  useLayoutEffect(() => {
-    if (isCurrentRound && scrollOffsetRef.current > 0 && innerRef.current) {
-      innerRef.current.scrollTo({ x: scrollOffsetRef.current, animated: false });
-    }
-  }, [displayResponses.length]);
+  }, [responses, isCurrentRound]);
 
   const onScroll = (e) => {
     const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
-    scrollOffsetRef.current = e.nativeEvent.contentOffset.x;
     if (page >= 0 && page < sortedResponses.length) { setIdx(page); onSelectModel && onSelectModel(roundIdx, page); }
   };
 
@@ -93,7 +103,7 @@ const RoundBlock = React.forwardRef(({ roundResponses, roundIdx, isCurrentRound,
         {sortedResponses.map((r, i) => (
           <TouchableOpacity key={r.modelId}
             style={[st.indicator, { backgroundColor: i === idx ? getColor(r.modelId) : colors.surfaceSecondary, borderColor: i === idx ? getColor(r.modelId) : colors.borderLight }]}
-            onPress={() => { setIdx(i); ref.current?.scrollTo({ x: i * SCREEN_W, animated: true }); onSelectModel && onSelectModel(roundIdx, i); }}>
+            onPress={() => { setIdx(i); innerRef.current?.scrollTo({ x: i * SCREEN_W, animated: true }); onSelectModel && onSelectModel(roundIdx, i); }}>
             <Text style={[st.indicatorText, { color: i === idx ? '#FFF' : colors.text }]} numberOfLines={1}>{r.modelName}</Text>
           </TouchableOpacity>
         ))}
@@ -101,8 +111,7 @@ const RoundBlock = React.forwardRef(({ roundResponses, roundIdx, isCurrentRound,
       <ScrollView ref={innerRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
         style={st.swiper} onMomentumScrollEnd={onScroll} removeClippedSubviews={false}>
         {sortedResponses.map((resp, i) => (
-          <AnimatedCard key={resp.modelId} isFirst={isFirstRound && i === 0} index={0}>
-          <View style={st.swiperPage}>
+          <View key={resp.modelId} style={st.swiperPage}>
             <View style={[st.answerCard, { backgroundColor: colors.surface, borderColor: resp.success ? getColor(resp.modelId) : colors.error, borderWidth: 1.5 }]}>
               <View style={[st.cardHeader, { borderBottomColor: colors.borderLight }]}>
                 <View style={[st.cardDot, { backgroundColor: getColor(resp.modelId) }]} />
@@ -129,7 +138,6 @@ const RoundBlock = React.forwardRef(({ roundResponses, roundIdx, isCurrentRound,
               </ScrollView>
             </View>
           </View>
-          </AnimatedCard>
         ))}
       </ScrollView>
       {/* AI声明 - 无背景 */}
@@ -165,12 +173,12 @@ const HomeScreen = () => {
   const [newsRefreshing, setNewsRefreshing] = useState(false);
   const [newsError, setNewsError] = useState(null);
   const [newsHidden, setNewsHidden] = useState(false);
+  const [displayNews, setDisplayNews] = useState([]);
+  const prevTitlesRef = useRef('');
   const [showGuide, setShowGuide] = useState(false);
   const [streamCount, setStreamCount] = useState(0);
   const responsesRef = useRef([]);
   const liveRoundRef = useRef(null);
-  const statusOpacity = useRef(new Animated.Value(1)).current;
-  const answerTranslateY = useRef(new Animated.Value(0)).current;
   const lastTapRef = useRef(0);
   const prevChatItemsLenRef = useRef(0);
   const prevContentHeightRef = useRef(0);
@@ -216,7 +224,7 @@ const HomeScreen = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // 加载完成后渐出状态栏 + 答案上移，完成后追加round到chatItems
+  // 加载完成后追加round到chatItems
   const pendingRoundRef = useRef(null);
   useEffect(() => {
     if (wasLoadingRef.current && !isLoading) {
@@ -230,11 +238,8 @@ const HomeScreen = () => {
       requestAnimationFrame(() => {
         clearResponses();
       });
-      Animated.timing(statusOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start();
     } else if (isLoading) {
       wasLoadingRef.current = true;
-      statusOpacity.setValue(1);
-      answerTranslateY.setValue(20);
     }
   }, [isLoading]);
 
@@ -280,6 +285,18 @@ const HomeScreen = () => {
     loadNews();
   }, []);
 
+  // 返回键处理：对话界面返回首屏，首屏返回允许退出
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (chatItems.length > 0 && !isLoading) {
+        startNewConversation();
+        return true;
+      }
+      return false;
+    });
+    return () => handler.remove();
+  }, [chatItems.length, isLoading]);
+
   const loadNews = async (isRefresh = false) => {
     if (isRefresh) {
       setNewsRefreshing(true);
@@ -307,6 +324,14 @@ const HomeScreen = () => {
       setNewsRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    if (newsList.length === 0) return;
+    const newTitles = newsList.map(n => n.title).join('|');
+    if (newTitles === prevTitlesRef.current) return;
+    setDisplayNews(newsList);
+    prevTitlesRef.current = newTitles;
+  }, [newsList]);
 
   const enabledCount = accounts.filter(a => a.enabled && a.apiKey).length;
   const getColor = (modelId) => COLORS.modelColors[modelId] || '#888';
@@ -398,7 +423,15 @@ const HomeScreen = () => {
         <ScrollView style={st.emptyContainer}
           contentContainerStyle={st.emptyContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={newsRefreshing} onRefresh={() => loadNews(true)} tintColor={isDark ? '#888888' : '#666666'} colors={[isDark ? '#FFFFFF' : '#000000']} progressBackgroundColor={isDark ? '#1A1A1A' : '#F0F0F0'} />}>
+          refreshControl={
+            <RefreshControl
+              refreshing={newsRefreshing}
+              onRefresh={() => loadNews(true)}
+              tintColor={colors.textSecondary}
+              colors={[colors.primary]}
+              progressBackgroundColor={colors.surfaceSecondary}
+            />
+          }>
           <View style={st.centerContent}>
             <Text style={[st.brandName, { color: colors.text }]}
               onTouchEnd={() => {
@@ -407,7 +440,7 @@ const HomeScreen = () => {
                   setShowGuide(true);
                 }
                 lastTapRef.current = now;
-              }}>AIALL</Text>
+              }}>面面</Text>
             <Animated.Text style={[st.greeting, { color: colors.textSecondary, opacity: fadeAnim }]}>
               {GREETINGS[greetingIdx]}
             </Animated.Text>
@@ -423,18 +456,19 @@ const HomeScreen = () => {
 
           {/* 热点新闻 */}
           {!newsHidden && (
-          <AnimatedCard>
           <View style={st.newsSection}>
             <View style={st.newsHeader}>
+              <View style={{ flex: 1 }} />
               <Ionicons name="flame" size={18} color="#FF3B30" />
-              <Text style={[st.newsTitle, { color: colors.text }]}>今日热点</Text>
+              <Text style={[st.newsTitle, { color: colors.text, flex: 0 }]}>今日热点</Text>
+              <View style={{ flex: 1 }} />
             </View>
-            {newsLoading && newsList.length === 0 ? (
+            {newsLoading && displayNews.length === 0 ? (
               <View style={st.newsLoadingBox}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={[st.newsLoadingText, { color: colors.textTertiary }]}>正在获取热点...</Text>
               </View>
-            ) : newsError && newsList.length === 0 ? (
+            ) : newsError && displayNews.length === 0 ? (
               <View style={st.newsErrorBox}>
                 <Ionicons name="cloud-offline-outline" size={24} color={colors.textTertiary} />
                 <Text style={[st.newsErrorText, { color: colors.textTertiary }]}>{newsError}</Text>
@@ -444,19 +478,12 @@ const HomeScreen = () => {
                 {newsError && (
                   <Text style={[st.newsWarning, { color: colors.warning }]}>{newsError}</Text>
                 )}
-                {newsList.map((item, idx) => (
-                  <TouchableOpacity key={`news-${idx}`}
-                    style={[st.newsItem, { backgroundColor: colors.surfaceSecondary, borderColor: colors.borderLight }]}
-                    onPress={() => handleSend(item.title)}
-                    activeOpacity={0.7}>
-                    <Text style={[st.newsItemTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
-                    <Text style={[st.newsItemSource, { color: colors.textTertiary }]}>{item.platform}</Text>
-                  </TouchableOpacity>
-                ))}
+                {displayNews.map((item, idx) => item ? (
+                  <StaggeredNewsItem key={item.title} item={item} index={idx} colors={colors} onPress={handleSend} />
+                ) : null)}
               </View>
             )}
           </View>
-          </AnimatedCard>
           )}
         </ScrollView>
       ) : (
@@ -474,8 +501,8 @@ const HomeScreen = () => {
 
             {chatItems.filter(Boolean).map((item, idx) => {
               if (item.type === 'user') {
-                return <AnimatedCard key={`u-${idx}`} isFirst={idx === 0}><MessageBubble message={item.content} isUser={true}
-                  onCopy={(t) => { try { require('expo-clipboard').setStringAsync(t || ''); Alert.alert('已复制到剪贴板'); } catch (e) {} }} /></AnimatedCard>;
+                return <MessageBubble key={`u-${idx}`} message={item.content} isUser={true}
+                  onCopy={(t) => { try { require('expo-clipboard').setStringAsync(t || ''); Alert.alert('已复制到剪贴板'); } catch (e) {} }} />;
               }
               if (item.type === 'round' && item.responses) {
                 let actualRound = 0;
@@ -489,19 +516,20 @@ const HomeScreen = () => {
             })}
 
             {isLoading && (
-              <Animated.View style={[st.statusBar, { opacity: statusOpacity }]}>
+              <View style={st.statusBar}>
                 <LoadingDots color={colors.primary} size={4} />
                 <Text style={[st.statusText, { color: colors.textSecondary }]}>
-                  {phase === 'searching' ? '🌐 搜索中' : streamCount > 0 ? `${streamCount}/${enabledCount} 已响应` : '思考中'}
+                  {phase === 'searching' ? '🌐 搜索中' :
+                   phase === 'error' ? '⚠️ 部分模型异常' :
+                   streamCount > 0 ? `⚡ ${streamCount}/${enabledCount} 已响应` :
+                   '💭 思考中'}
                 </Text>
-              </Animated.View>
+              </View>
             )}
 
             {streamCount > 0 && (
-              <Animated.View style={{ transform: [{ translateY: answerTranslateY }] }}>
-                <MemoizedRoundBlock ref={liveRoundRef} roundResponses={responsesRef.current} roundIdx={completedRoundCount}
-                  isCurrentRound={true} colors={colors} getColor={getColor} />
-              </Animated.View>
+              <MemoizedRoundBlock ref={liveRoundRef} roundResponses={responsesRef.current} roundIdx={completedRoundCount}
+                isCurrentRound={true} colors={colors} getColor={getColor} />
             )}
           </ScrollView>
         </View>
@@ -594,7 +622,7 @@ const HomeScreen = () => {
               </View>
             </View>
 
-            <Text style={[st.guideHint, { color: colors.textTertiary }]}>双击首页"AIALL"可再次查看</Text>
+            <Text style={[st.guideHint, { color: colors.textTertiary }]}>双击首页"面面"可再次查看</Text>
 
             <TouchableOpacity style={[st.guideBtn, { backgroundColor: colors.primary }]} onPress={() => setShowGuide(false)}>
               <Text style={{ fontSize: FONTS.md, fontWeight: '600', color: isDark ? '#000' : '#FFF' }}>开始使用</Text>

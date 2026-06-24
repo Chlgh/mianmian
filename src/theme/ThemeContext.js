@@ -66,14 +66,14 @@ export const ThemeProvider = ({ children }) => {
   const [modelTestStatus, setModelTestStatus] = useState({});
 
   useEffect(() => {
-    AsyncStorage.getItem('@aiall_theme_mode').then(v => {
+    AsyncStorage.getItem('@mianmian_theme_mode').then(v => {
       if (v && ['light', 'dark', 'system'].includes(v)) setThemeModeState(v);
     }).catch(() => {});
   }, []);
 
   const setThemeMode = useCallback((mode) => {
     setThemeModeState(mode);
-    AsyncStorage.setItem('@aiall_theme_mode', mode).catch(() => {});
+    AsyncStorage.setItem('@mianmian_theme_mode', mode).catch(() => {});
   }, []);
 
   const isDark = themeMode === 'system' 

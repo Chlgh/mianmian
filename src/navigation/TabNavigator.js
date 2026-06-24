@@ -1,6 +1,6 @@
 // 底部导航栏 - 滑动切换 + 毛玻璃透明效果
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, Platform, Animated, PanResponder, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Platform, Animated, PanResponder, useWindowDimensions, InteractionManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING } from '../theme';
 import { useTheme } from '../theme/ThemeContext';
@@ -31,16 +31,23 @@ const TabContent = () => {
   const goToRef = useRef(null);
   const lastTapRef = useRef([0, 0, 0]);
   const screenRefs = useRef([null, null, null]);
+  const isDraggingRef = useRef(false);
+  const pendingIdxRef = useRef(null);
 
   useEffect(() => { activeIdxRef.current = activeIdx; }, [activeIdx]);
 
   const goTo = useCallback((idx) => {
+    if (idx === activeIdxRef.current) return;
     activeIdxRef.current = idx;
-    setActiveIdx(idx);
-    Animated.timing(translateX, {
+    pendingIdxRef.current = idx;
+    InteractionManager.runAfterInteractions(() => {
+      setActiveIdx(idx);
+    });
+    Animated.spring(translateX, {
       toValue: -idx * SCREEN_W,
-      duration: 200,
       useNativeDriver: true,
+      tension: 65,
+      friction: 11,
     }).start();
   }, [translateX, SCREEN_W]);
 
@@ -59,18 +66,42 @@ const TabContent = () => {
     onMoveShouldSetPanResponder: (_, g) => {
       return Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
     },
+    onPanResponderGrant: () => {
+      isDraggingRef.current = true;
+    },
     onPanResponderMove: (_, g) => {
+      if (!isDraggingRef.current) return;
       const idx = activeIdxRef.current;
-      translateX.setValue(Math.max(-(TAB_ITEMS.length - 1) * SCREEN_W, Math.min(0, -idx * SCREEN_W + g.dx)));
+      const nextVal = -idx * SCREEN_W + g.dx;
+      const clamped = Math.max(-(TAB_ITEMS.length - 1) * SCREEN_W, Math.min(0, nextVal));
+      translateX.setValue(clamped);
     },
     onPanResponderRelease: (_, g) => {
+      isDraggingRef.current = false;
       const idx = activeIdxRef.current;
       const t = SCREEN_W * 0.2;
-      if (g.dx < -t && idx < TAB_ITEMS.length - 1) { goToRef.current(idx + 1); }
-      else if (g.dx > t && idx > 0) { goToRef.current(idx - 1); }
-      else {
-        Animated.timing(translateX, { toValue: -idx * SCREEN_W, duration: 150, useNativeDriver: true }).start();
+      if (g.dx < -t && idx < TAB_ITEMS.length - 1) {
+        goToRef.current(idx + 1);
+      } else if (g.dx > t && idx > 0) {
+        goToRef.current(idx - 1);
+      } else {
+        Animated.spring(translateX, {
+          toValue: -idx * SCREEN_W,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }).start();
       }
+    },
+    onPanResponderTerminate: () => {
+      isDraggingRef.current = false;
+      const idx = activeIdxRef.current;
+      Animated.spring(translateX, {
+        toValue: -idx * SCREEN_W,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
     },
   })).current;
 

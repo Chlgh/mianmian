@@ -1,11 +1,11 @@
-// AIALL - 多模型AI搜索对比应用
+// mianmian - 多模型AI搜索对比应用
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import TabNavigator from './src/navigation/TabNavigator';
-import { cleanOldConversations, migrateAllConversations } from './src/services/storage';
+import { cleanOldConversations, migrateAllConversations, migrateFromAiall } from './src/services/storage';
 
 // 仅在原生平台使用 StatusBar
 let StatusBar;
@@ -54,8 +54,10 @@ const AppContent = () => {
 
 export default function App() {
   useEffect(() => {
-    cleanOldConversations();
-    migrateAllConversations();
+    migrateFromAiall().then(() => {
+      cleanOldConversations();
+      migrateAllConversations();
+    });
   }, []);
 
   return (

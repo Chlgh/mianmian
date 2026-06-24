@@ -15,7 +15,7 @@ const FALLBACK_APIS = [
 ];
 
 const ITEMS_PER_SOURCE = 2;
-const STORAGE_KEY = '@aiall_shown_news';
+const STORAGE_KEY = '@mianmian_shown_news';
 const EXPIRE_MS = 24 * 60 * 60 * 1000;
 
 let consecutiveFailures = 0;

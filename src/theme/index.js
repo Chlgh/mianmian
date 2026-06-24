@@ -1,4 +1,4 @@
-// AIALL 主题配置 - 鸿蒙字体 + 简约风格
+// mianmian 主题配置 - 鸿蒙字体 + 简约风格
 import { Dimensions, Platform } from 'react-native';
 
 const { width, height } = Dimensions.get('window');

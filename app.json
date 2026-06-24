@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "AIALL",
-    "slug": "AIALL",
+    "name": "面面",
+    "slug": "mianmian",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "aiall",
+    "scheme": "mianmian",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aiall.app"
+      "bundleIdentifier": "com.mianmian.app"
     },
     "android": {
-      "package": "com.aiall.app",
+      "package": "com.mianmian.app",
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
