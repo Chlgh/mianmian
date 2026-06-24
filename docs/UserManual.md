@@ -48,3 +48,12 @@
 - 热点标题会实时更新，下拉可获取最新内容
 - 模型管理页支持拖拽排序，长按可删除
 - 启动时会自动检测所有已配置模型的连接状态
+
+## 🌐 开源项目
+
+本项目完全开源，欢迎贡献代码和提出建议。
+
+- **GitHub 地址**: https://github.com/Chlgh/mianmian
+- **问题反馈**: https://github.com/Chlgh/mianmian/issues
+- **下载 APK**: https://github.com/Chlgh/mianmian/releases
+- **开源协议**: MIT License
