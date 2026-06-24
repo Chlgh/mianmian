@@ -89,6 +89,15 @@ src/
 - **Claude 格式**：Anthropic Claude
 - **Gemini 格式**：Google Gemini
 
+## 已知问题
+
+- **热点 API 零点故障**：每日零点（00:00-00:30）左右，热点接口可能请求失败。涉及的 API 接口：
+  - `https://orz.ai/api/v1/dailynews?platform=baidu`
+  - `https://orz.ai/api/v1/dailynews?platform=weibo`
+  - `https://orz.ai/api/v1/dailynews?platform=zhihu`
+  - 备用接口：`https://api.vvhan.com/api/hotList/{baiduHot|wbHot|zhihuHot}`
+  - **状态**：暂未修复
+
 ## 开源协议
 
 [MIT License](LICENSE)

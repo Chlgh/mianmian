@@ -87,6 +87,15 @@ Supported model API formats:
 - **Claude format**: Anthropic Claude
 - **Gemini format**: Google Gemini
 
+## Known Issues
+
+- **Hot News API Midnight Failure**: Around midnight (00:00-00:30), hot news APIs may fail. Affected endpoints:
+  - `https://orz.ai/api/v1/dailynews?platform=baidu`
+  - `https://orz.ai/api/v1/dailynews?platform=weibo`
+  - `https://orz.ai/api/v1/dailynews?platform=zhihu`
+  - Fallback: `https://api.vvhan.com/api/hotList/{baiduHot|wbHot|zhihuHot}`
+  - **Status**: Not fixed yet
+
 ## Open Source
 
 This project is fully open source. Contributions and suggestions are welcome.
