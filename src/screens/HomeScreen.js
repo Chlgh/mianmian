@@ -624,6 +624,14 @@ const HomeScreen = () => {
 
             <Text style={[st.guideHint, { color: colors.textTertiary }]}>双击首页"面面"可再次查看</Text>
 
+            <TouchableOpacity style={[st.guideItem, { borderBottomColor: colors.borderLight }]} onPress={() => RNLinking.openURL('https://github.com/Chlgh/mianmian')}>
+              <View style={st.guideIcon}><Text style={{ fontSize: 18 }}>🌐</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[st.guideItemTitle, { color: colors.primary }]}>开源项目</Text>
+                <Text style={[st.guideItemDesc, { color: colors.textSecondary }]}>GitHub: Chlgh/mianmian</Text>
+              </View>
+            </TouchableOpacity>
+
             <TouchableOpacity style={[st.guideBtn, { backgroundColor: colors.primary }]} onPress={() => setShowGuide(false)}>
               <Text style={{ fontSize: FONTS.md, fontWeight: '600', color: isDark ? '#000' : '#FFF' }}>开始使用</Text>
             </TouchableOpacity>
