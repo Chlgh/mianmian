@@ -165,7 +165,7 @@ const en = {
 
   'ai.systemPrompt': 'You are a helpful AI assistant. Today is {date}. Please provide accurate, detailed and useful information based on real-time search results and professional knowledge. Please answer in English.',
   'ai.systemPromptNoSearch': 'You are a helpful AI assistant. Today is {date}. Please provide accurate, detailed and useful information. Please answer in English.',
-  'ai.searchPrompt': 'The following are relevant information found from the internet ({time}):\n{searchContext}\n\nPlease answer the user\'s question based on this information combined with your knowledge.\n\nUser question: {question}',
+  'ai.searchPrompt': 'The following are relevant information found from the internet ({time}):\n{searchContext}\n\nPlease answer the user\'s question based on this information combined with your knowledge. Please answer in English.\n\nUser question: {question}',
   'ai.searchToolDesc': 'Search the internet for real-time information',
   'ai.searchKeyword': 'Search keywords',
   'ai.searchQuery': 'Search query: ',

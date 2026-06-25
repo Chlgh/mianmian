@@ -283,8 +283,8 @@ const st = StyleSheet.create({
   citationsTitle: { fontSize: FONTS.xs, fontWeight: '600', marginBottom: SPACING.xs, color: '#888' },
   citationItem: { paddingVertical: 3 },
   citationText: { fontSize: FONTS.sm, lineHeight: 20 },
-  disclaimer: { alignItems: 'center', paddingVertical: SPACING.xs },
-  disclaimerText: { fontSize: FONTS.xs },
+  disclaimer: { alignItems: 'center', paddingVertical: SPACING.xs, width: '100%' },
+  disclaimerText: { fontSize: FONTS.xs, textAlign: 'center' },
   // 输入区域
   inputArea: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: SPACING.sm, borderTopWidth: 1 },
   inputBox: { flexDirection: 'row', alignItems: 'flex-end', borderRadius: BORDER_RADIUS.xl, borderWidth: 1, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, gap: SPACING.sm },

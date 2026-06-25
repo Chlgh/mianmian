@@ -157,13 +157,20 @@ const buildWebSearchTools = (account) => {
 const buildOpenAIBody = (model, messages, webSearch, account) => {
   const id = (account.id || '').toLowerCase();
   const isDeepSeek = id.includes('deepseek');
+  const isMimo = id.includes('mimo');
   const tools = webSearch ? buildWebSearchTools(account) : null;
+  const locale = getLocale();
+  const finalMessages = messages.map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
+  // MiMo 模型对 system prompt 语言指令遵循度低，在末尾追加强制语言要求
+  if (isMimo && locale === 'en') {
+    finalMessages.push({ role: 'system', content: 'IMPORTANT: You MUST respond entirely in English. Do NOT use Chinese or any other language.' });
+  }
   return {
     model,
-    messages: messages.map(m => ({
-      role: m.role,
-      content: m.content,
-    })),
+    messages: finalMessages,
     temperature: 0.7,
     max_tokens: 4096,
     // DeepSeek 使用顶层 enable_search 参数
