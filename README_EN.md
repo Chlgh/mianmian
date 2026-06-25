@@ -11,6 +11,7 @@ Multi-model AI search comparison app — Query multiple AI models simultaneously
 - **Dark mode**: Supports light/dark/follow system themes
 - **Custom models**: Add any OpenAI-compatible API model
 - **Hot topics**: Integrated trending news, one-click to ask
+- **Internationalization**: Full Chinese/English support, auto-switch with system language (New in v1.1.0)
 
 ## Tech Stack
 
@@ -95,6 +96,47 @@ Supported model API formats:
   - `https://orz.ai/api/v1/dailynews?platform=zhihu`
   - Fallback: `https://api.vvhan.com/api/hotList/{baiduHot|wbHot|zhihuHot}`
   - **Status**: Not fixed yet
+
+## Changelog
+
+### v1.1.0 (2026-06-26)
+
+**Added**
+- i18n system: Full Chinese/English support (215+ translation strings), auto-switch with system language
+- Language switch: New language options in settings (Chinese/English/Follow System), auto-refresh hot topics after switching
+- Hot topics error display: Show error messages with icon on network failure, users can pull-to-refresh to retry
+
+**Improved**
+- Settings modal: Unified theme/language button styles, bold selected text, no card resizing on click
+- English greeting: Shortened and limited to single line, no wrapping
+- Hot topics count: Increased from 2 to 3 items per source, 3 sources max 9 items showing 6, tolerates 1 source failure
+- Follow system option: Stays selected after app restart, no longer jumps to other options
+
+**Fixed**
+- Hot topics not loading on startup: consecutiveFailures accumulation caused permanent section hiding
+- All hot topics APIs failing: AbortSignal.timeout unsupported in React Native 0.85, replaced with AbortController
+- Empty hot topics after dedup: fetchHotNews added fallback retry mechanism
+- lastNews overwritten by empty array: forceRefreshNews now protects against empty selection
+- Hot topics cache expiration: getShownTitles now filters expired entries on every call
+- Follow system language refresh: Correctly triggers news refresh when switching to Follow System
+- Language detection fix: expo-localization replaces unreliable I18nManager
+- Hot topics load timing: Waits for language initialization before loading
+
+**Build Optimization**
+- APK size: 70MB → 25MB
+- Build time: 5m14s → 1m17s (76% faster)
+
+**Dependencies**
+- Added expo-localization
+
+### v1.0.2 (2026-06-24)
+
+- Added open source entry in guide modal
+- Updated project icon
+
+### v1.0.0 (2026-06-24)
+
+- Initial release
 
 ## Open Source
 
