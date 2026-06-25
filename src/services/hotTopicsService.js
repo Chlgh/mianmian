@@ -1,23 +1,25 @@
 // 热点话题服务 - 聚合多个免费API获取网络热点
 // 支持多平台：微博、知乎、百度、抖音、头条、B站、36氪、澎湃新闻等
+// 英文模式：Hacker News、Google News、Reddit
+import { t, getLocale } from '../i18n';
 
 // 所有可用的免费热点API列表（无需API Key）
-const HOT_API_LIST = [
+const getNewsSources = () => [
   // === 韩小韩API系列（最稳定，CORS友好）===
-  { id: 'vvhan-weibo',     name: '微博热搜', url: 'https://api.vvhan.com/api/hotList/wbHot', parser: parseVVHan },
-  { id: 'vvhan-zhihu',     name: '知乎热榜', url: 'https://api.vvhan.com/api/hotList/zhihuHot', parser: parseVVHan },
-  { id: 'vvhan-baidu',     name: '百度热搜', url: 'https://api.vvhan.com/api/hotList/baiduHot', parser: parseVVHan },
-  { id: 'vvhan-douyin',    name: '抖音热榜', url: 'https://api.vvhan.com/api/hotList/douyinHot', parser: parseVVHan },
-  { id: 'vvhan-toutiao',   name: '头条热榜', url: 'https://api.vvhan.com/api/hotList/toutiao', parser: parseVVHan },
-  { id: 'vvhan-bili',      name: 'B站热榜', url: 'https://api.vvhan.com/api/hotList/biliHot', parser: parseVVHan },
-  { id: 'vvhan-36kr',      name: '36氪热榜', url: 'https://api.vvhan.com/api/hotList/36kr', parser: parseVVHan },
-  { id: 'vvhan-thepaper',  name: '澎湃热榜', url: 'https://api.vvhan.com/api/hotList/thepaper', parser: parseVVHan },
-  { id: 'vvhan-history',   name: '历史上的今天', url: 'https://api.vvhan.com/api/hotList/history', parser: parseVVHan },
+  { id: 'vvhan-weibo',     name: t('news.source.weibo'), url: 'https://api.vvhan.com/api/hotList/wbHot', parser: parseVVHan },
+  { id: 'vvhan-zhihu',     name: t('news.source.zhihu'), url: 'https://api.vvhan.com/api/hotList/zhihuHot', parser: parseVVHan },
+  { id: 'vvhan-baidu',     name: t('news.source.baidu'), url: 'https://api.vvhan.com/api/hotList/baiduHot', parser: parseVVHan },
+  { id: 'vvhan-douyin',    name: t('news.source.douyin'), url: 'https://api.vvhan.com/api/hotList/douyinHot', parser: parseVVHan },
+  { id: 'vvhan-toutiao',   name: t('news.source.toutiao'), url: 'https://api.vvhan.com/api/hotList/toutiao', parser: parseVVHan },
+  { id: 'vvhan-bili',      name: t('news.source.bili'), url: 'https://api.vvhan.com/api/hotList/biliHot', parser: parseVVHan },
+  { id: 'vvhan-36kr',      name: t('news.source.kr36'), url: 'https://api.vvhan.com/api/hotList/36kr', parser: parseVVHan },
+  { id: 'vvhan-thepaper',  name: t('news.source.thepaper'), url: 'https://api.vvhan.com/api/hotList/thepaper', parser: parseVVHan },
+  { id: 'vvhan-history',   name: t('news.source.history'), url: 'https://api.vvhan.com/api/hotList/history', parser: parseVVHan },
   // === 其他免费API（备选）===
-  { id: 'tenapi',          name: '综合热搜', url: 'https://tenapi.cn/v2/hotlist', parser: parseTenAPI },
-  { id: 'aoau-zhihu',      name: '知乎热搜', url: 'https://api.aoau.top/api/zhihu/hot', parser: parseGeneric },
-  { id: '52vmy-zhihu',     name: '知乎热点', url: 'https://api.52vmy.cn/api/wl/zhihu', parser: parse52vmy },
-  { id: 'knmsn',           name: '热点聚合', url: 'https://www.knmsn.cn/api/hotlist', parser: parseKnmsn },
+  { id: 'tenapi',          name: t('news.source.comprehensive'), url: 'https://tenapi.cn/v2/hotlist', parser: parseTenAPI },
+  { id: 'aoau-zhihu',      name: t('news.source.zhihuHot'), url: 'https://api.aoau.top/api/zhihu/hot', parser: parseGeneric },
+  { id: '52vmy-zhihu',     name: t('news.source.zhihuTrending'), url: 'https://api.52vmy.cn/api/wl/zhihu', parser: parse52vmy },
+  { id: 'knmsn',           name: t('news.source.aggregate'), url: 'https://www.knmsn.cn/api/hotlist', parser: parseKnmsn },
 ];
 
 // 解析韩小韩API响应格式
@@ -107,14 +109,55 @@ const PLATFORM_EMOJIS = {
 
 const FALLBACK_EMOJIS = ['🔥', '💡', '🚀', '📱', '🎮', '🎬', '📈', '⚽', '🎨', '💻', '⚛️', '🤖', '🔬'];
 
+// 国际新闻API解析器
+function parseHackerNews(data) {
+  if (data?.hits && Array.isArray(data.hits)) {
+    return data.hits.map(h => h.title).filter(Boolean);
+  }
+  return [];
+}
+
+function parseGoogleNews(xml) {
+  const titles = [];
+  const matches = xml.matchAll(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/gi);
+  for (const m of matches) {
+    const t = m[1].trim();
+    if (t && t !== 'Google News') titles.push(t);
+  }
+  return titles;
+}
+
+function parseReddit(data) {
+  if (data?.data?.children && Array.isArray(data.data.children)) {
+    return data.data.children.map(c => c.data?.title).filter(Boolean);
+  }
+  return [];
+}
+
+// 英文模式国际新闻API
+const getInternationalSources = () => [
+  { id: 'hn', name: t('news.en.source.hn'), url: 'https://hn.algolia.com/api/v1/search?tags=front_page', parser: parseHackerNews },
+  { id: 'reddit', name: t('news.en.source.reddit'), url: 'https://www.reddit.com/r/popular/hot.json?limit=10', parser: parseReddit },
+];
+
+// 英文模式备用话题
+const getEnglishFallbackTopics = () => [
+  { text: t('news.en.fallback.ai'), emoji: '🤖' },
+  { text: t('news.en.fallback.tech'), emoji: '🚀' },
+  { text: t('news.en.fallback.world'), emoji: '🌍' },
+  { text: t('news.en.fallback.science'), emoji: '🔬' },
+  { text: t('news.en.fallback.startup'), emoji: '💼' },
+  { text: t('news.en.fallback.culture'), emoji: '🎨' },
+];
+
 // 内置备用热点（所有API都失败时使用）
-const FALLBACK_TOPICS = [
-  { text: 'AI技术最新突破', emoji: '🤖' },
-  { text: '今日热点新闻', emoji: '🔥' },
-  { text: '科技前沿动态', emoji: '🚀' },
-  { text: '热门话题讨论', emoji: '💡' },
-  { text: '数码新品发布', emoji: '📱' },
-  { text: '影视资讯速递', emoji: '🎬' },
+const getFallbackTopics = () => [
+  { text: t('news.fallback.ai'), emoji: '🤖' },
+  { text: t('news.fallback.news'), emoji: '🔥' },
+  { text: t('news.fallback.tech'), emoji: '🚀' },
+  { text: t('news.fallback.topic'), emoji: '💡' },
+  { text: t('news.fallback.digital'), emoji: '📱' },
+  { text: t('news.fallback.entertainment'), emoji: '🎬' },
 ];
 
 // 截断并添加省略号
@@ -129,8 +172,75 @@ function truncate(text, maxLen = 18) {
  * @returns {Promise<Array<{text: string, emoji: string, source: string}>>}
  */
 export async function fetchHotTopics(maxItems = 6) {
+  const locale = getLocale();
+  const isEnglish = locale === 'en';
+  
+  // 英文模式使用国际新闻API
+  if (isEnglish) {
+    return fetchInternationalTopics(maxItems);
+  }
+  
+  // 中文模式使用国内API
+  return fetchChineseTopics(maxItems);
+}
+
+async function fetchInternationalTopics(maxItems) {
+  const apis = getInternationalSources();
+  const allItems = [];
+  const seenTexts = new Set();
+
+  for (const api of apis) {
+    if (allItems.length >= maxItems * 2) break;
+    try {
+      const response = await fetch(api.url, {
+        signal: AbortSignal.timeout(8000),
+        headers: { 'Accept': 'application/json, text/plain, */*' },
+      });
+      if (!response.ok) continue;
+      
+      let items;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('xml') || contentType.includes('text')) {
+        const text = await response.text();
+        items = api.parser(text);
+      } else {
+        const data = await response.json();
+        items = api.parser(data);
+      }
+      
+      if (!items || items.length === 0) continue;
+      for (const item of items) {
+        if (!item || seenTexts.has(item.substring(0, 8))) continue;
+        seenTexts.add(item.substring(0, 8));
+        allItems.push({ text: item, emoji: '📰', source: api.name });
+        if (allItems.length >= maxItems * 2) break;
+      }
+    } catch (e) {
+      console.log(`[HotTopics] International API ${api.id} failed:`, e.message);
+    }
+  }
+
+  if (allItems.length < maxItems) {
+    for (const fb of getEnglishFallbackTopics()) {
+      if (allItems.length >= maxItems) break;
+      const key = fb.text.substring(0, 8);
+      if (!seenTexts.has(key)) {
+        seenTexts.add(key);
+        allItems.push({ text: fb.text, emoji: fb.emoji, source: t('news.source.builtin') });
+      }
+    }
+  }
+
+  return allItems.slice(0, maxItems).map(item => ({
+    ...item,
+    display: `${item.emoji} ${truncate(item.text)}`,
+    full: item.text,
+  }));
+}
+
+async function fetchChineseTopics(maxItems) {
   // 随机打乱API顺序，轮流使用避免单一依赖
-  const shuffledApis = [...HOT_API_LIST].sort(() => Math.random() - 0.5);
+  const shuffledApis = [...getNewsSources()].sort(() => Math.random() - 0.5);
   // 优先使用韩小韩系列
   const vvhanApis = shuffledApis.filter(a => a.id.startsWith('vvhan-'));
   const otherApis = shuffledApis.filter(a => !a.id.startsWith('vvhan-'));
@@ -177,12 +287,12 @@ export async function fetchHotTopics(maxItems = 6) {
 
   // 如果收集到的数据不足，混入备用热点
   if (allItems.length < maxItems) {
-    for (const fb of FALLBACK_TOPICS) {
+    for (const fb of getFallbackTopics()) {
       if (allItems.length >= maxItems) break;
       const key = fb.text.substring(0, 6);
       if (!seenTexts.has(key)) {
         seenTexts.add(key);
-        allItems.push({ text: fb.text, emoji: fb.emoji, source: '内置' });
+        allItems.push({ text: fb.text, emoji: fb.emoji, source: t('news.source.builtin') });
       }
     }
   }
@@ -203,7 +313,7 @@ export async function fetchHotTopics(maxItems = 6) {
  * @returns {Promise<Array>}
  */
 export async function fetchPlatformHotTopics(platformId) {
-  const api = HOT_API_LIST.find(a => a.id === `vvhan-${platformId}`);
+  const api = getNewsSources().find(a => a.id === `vvhan-${platformId}`);
   if (!api) return [];
 
   try {
@@ -228,5 +338,5 @@ export async function fetchPlatformHotTopics(platformId) {
 export default {
   fetchHotTopics,
   fetchPlatformHotTopics,
-  HOT_API_LIST,
+  getNewsSources,
 };

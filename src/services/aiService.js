@@ -1,3 +1,5 @@
+import { t, getLocale } from '../i18n';
+
 // AI 模型调用服务 - 支持 API 级联网搜索（tool calling）
 // 预搜索 + 多源联网搜索
 
@@ -131,10 +133,10 @@ const buildWebSearchTools = (account) => {
         type: 'function',
         function: {
           name: 'web_search',
-          description: '搜索互联网获取实时信息',
+          description: t('ai.searchToolDesc'),
           parameters: {
             type: 'object',
-            properties: { query: { type: 'string', description: '搜索关键词' } },
+            properties: { query: { type: 'string', description: t('ai.searchKeyword') } },
             required: ['query']
           }
         }
@@ -231,14 +233,14 @@ const parseOpenAIResponse = (data) => {
         try {
           const args = JSON.parse(tc.function.arguments);
           if (args.query || args.results || args.answer) {
-            return { content: args.answer || args.results || `搜索查询: ${args.query}`, citations };
+            return { content: args.answer || args.results || `${t('ai.searchQuery')}${args.query}`, citations };
           }
         } catch (e) {}
       }
     }
-    return { content: data.choices[0].message.content || '搜索完成，结果已整合到回答中', citations };
+    return { content: data.choices[0].message.content || t('ai.searchDone'), citations };
   }
-  return { content: '未获取到回复', citations };
+  return { content: t('ai.noReply'), citations };
 };
 
 const parseClaudeResponse = (data) => {
@@ -246,11 +248,11 @@ const parseClaudeResponse = (data) => {
   if (Array.isArray(content)) {
     return content.map(c => {
       if (c.type === 'text') return c.text;
-      if (c.type === 'tool_use') return `[搜索工具已调用]`;
+      if (c.type === 'tool_use') return t('ai.searchCalled');
       return '';
     }).join('\n');
   }
-  return '未获取到回复';
+  return t('ai.noReply');
 };
 
 const parseGeminiResponse = (data) => {
@@ -260,9 +262,9 @@ const parseGeminiResponse = (data) => {
     if (text) return text;
   }
   if (data.promptFeedback?.blockReason) {
-    return `内容被安全过滤阻止: ${data.promptFeedback.blockReason}`;
+    return `${t('ai.safetyFilter')}${data.promptFeedback.blockReason}`;
   }
-  return '未获取到回复';
+  return t('ai.noReply');
 };
 
 // 调用单个 AI 模型
@@ -276,16 +278,18 @@ export const callAIModel = async (account, conversationHistory, searchContextTex
     if (searchContextText) {
       const lastMsg = conversationHistory[conversationHistory.length - 1];
       const now = new Date();
-      const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+      const locale = getLocale();
+      const dateStr = locale.startsWith('zh') ? `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日` : `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
       messages = [
-        { role: 'system', content: `你是一个有帮助的AI助手。今天是${dateStr}。请基于实时搜索结果及专业知识库资料综合分析回答，尽量避免带有广告营销色彩。请用中文回答用户的问题。` },
-        { role: 'user', content: `以下是从互联网搜索到的相关信息（${now.toLocaleTimeString()}）：\n${searchContextText}\n\n请基于以上信息并结合你的知识回答用户问题。\n\n用户问题：${lastMsg.content}` },
+        { role: 'system', content: t('ai.systemPrompt', { date: dateStr }) },
+        { role: 'user', content: t('ai.searchPrompt', { time: now.toLocaleTimeString(), searchContext: searchContextText, question: lastMsg.content }) },
       ];
     } else {
       const now = new Date();
-      const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+      const locale = getLocale();
+      const dateStr = locale.startsWith('zh') ? `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日` : `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
       messages = [
-        { role: 'system', content: `你是一个有帮助的AI助手。今天是${dateStr}。请基于实时搜索结果及专业知识库资料综合分析回答，尽量避免带有广告营销色彩。请用中文回答用户的问题，提供准确、详细且有用的信息。` },
+        { role: 'system', content: t('ai.systemPromptNoSearch', { date: dateStr }) },
         ...conversationHistory,
       ];
     }
@@ -337,7 +341,7 @@ export const callAIModel = async (account, conversationHistory, searchContextTex
     try {
       data = await response.json();
     } catch (e) {
-      throw new Error('服务器返回了无效响应，请稍后重试');
+      throw new Error(t('ai.invalidResponse'));
     }
     let content;
     let citations = [];
@@ -366,15 +370,15 @@ export const callAIModel = async (account, conversationHistory, searchContextTex
   } catch (error) {
     const responseTime = Date.now() - startTime;
     if (error.name === 'AbortError') {
-      return { success: false, content: '请求已取消', responseTime, model: account.model, modelName: account.name, modelId: account.id, error: true };
+      return { success: false, content: t('ai.requestCancelled'), responseTime, model: account.model, modelName: account.name, modelId: account.id, error: true };
     }
-    let errorMessage = error.message || '未知错误';
+    let errorMessage = error.message || t('ai.unknownError');
     const statusCode = error.statusCode;
-    if (error.name === 'TimeoutError' || errorMessage.includes('timeout')) errorMessage = '请求超时';
-    else if (statusCode === 401 || errorMessage.includes('401')) errorMessage = 'API Key 无效';
-    else if (statusCode === 429 || errorMessage.includes('429')) errorMessage = '请求频繁';
-    else if (statusCode === 403 || errorMessage.includes('403')) errorMessage = 'API 访问被拒绝';
-    else if (statusCode >= 500) errorMessage = '服务器错误，请稍后重试';
+    if (error.name === 'TimeoutError' || errorMessage.includes('timeout')) errorMessage = t('ai.timeout');
+    else if (statusCode === 401 || errorMessage.includes('401')) errorMessage = t('ai.invalidKey');
+    else if (statusCode === 429 || errorMessage.includes('429')) errorMessage = t('ai.tooFrequent');
+    else if (statusCode === 403 || errorMessage.includes('403')) errorMessage = t('ai.accessDenied');
+    else if (statusCode >= 500) errorMessage = t('ai.serverError');
     // 如果联网搜索参数不被模型支持，回退到无搜索模式重试
     const isToolError = errorMessage.includes('tool') || errorMessage.includes('not support')
       || errorMessage.includes('not found') || errorMessage.includes('invalid')
@@ -384,7 +388,7 @@ export const callAIModel = async (account, conversationHistory, searchContextTex
       const webSearchHint = {
         modelId: account.id,
         modelName: account.name,
-        message: `「${account.name}」的联网搜索功能可能未开启。请在 ${account.name} API 平台检查是否启用了联网搜索插件/功能，并确认当前套餐支持该功能。`,
+        message: t('ai.webSearchHint', { name: account.name }),
       };
       try {
         const fallbackAccount = { ...account, webSearch: false };
@@ -408,7 +412,7 @@ export const callMultipleAIModels = async (accounts, conversationHistory, onMode
   if (enabledAccounts.length === 0) return [];
 
   const promises = enabledAccounts.map(async (account) => {
-    if (controller.signal.aborted) return { success: false, content: '请求已取消', modelName: account.name, modelId: account.id, model: account.model, error: true, responseTime: 0 };
+    if (controller.signal.aborted) return { success: false, content: t('ai.requestCancelled'), modelName: account.name, modelId: account.id, model: account.model, error: true, responseTime: 0 };
     const result = await callAIModel(account, conversationHistory, searchContextText, controller.signal);
     if (onModelResponse && !controller.signal.aborted) onModelResponse(result);
     return result;
@@ -417,7 +421,7 @@ export const callMultipleAIModels = async (accounts, conversationHistory, onMode
   const results = await Promise.allSettled(promises);
   return results.map((result, index) => {
     if (result.status === 'fulfilled') return result.value;
-    return { success: false, content: '调用失败: ' + (result.reason?.message || '未知错误'), modelName: enabledAccounts[index].name, modelId: enabledAccounts[index].id, model: enabledAccounts[index].model, error: true, responseTime: 0 };
+    return { success: false, content: `${t('ai.callFailed')}${result.reason?.message || t('ai.unknownError')}`, modelName: enabledAccounts[index].name, modelId: enabledAccounts[index].id, model: enabledAccounts[index].model, error: true, responseTime: 0 };
   });
 };
 
@@ -425,10 +429,10 @@ export const callMultipleAIModels = async (accounts, conversationHistory, onMode
 export const generateSummary = (question, responses) => {
   const successfulResponses = responses.filter(r => r.success);
   if (successfulResponses.length === 0) {
-    return { summary: '抱歉，所有AI模型都未能成功返回结果。请检查网络连接和API密钥设置。', commonPoints: [], differences: [] };
+    return { summary: t('ai.allFailed'), commonPoints: [], differences: [] };
   }
   const allContents = successfulResponses.map(r => ({ name: r.modelName, content: r.content }));
-  let summary = `针对您的问题"${question.substring(0, 50)}${question.length > 50 ? '...' : ''}"，共有 ${successfulResponses.length} 个AI模型给出了回答：\n\n`;
+  let summary = t('ai.summaryPrefix', { question: question.substring(0, 50) + (question.length > 50 ? '...' : ''), n: successfulResponses.length });
   allContents.forEach((item, index) => {
     const shortContent = item.content.length > 200 ? item.content.substring(0, 200) + '...' : item.content;
     summary += `【${item.name}】${shortContent}\n\n`;
@@ -436,18 +440,18 @@ export const generateSummary = (question, responses) => {
   const times = successfulResponses.map(r => r.responseTime);
   const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
   const fastestModel = successfulResponses.find(r => r.responseTime === Math.min(...times));
-  summary += `📊 响应统计：平均耗时 ${(avgTime / 1000).toFixed(1)}秒，最快模型为 ${fastestModel?.modelName || '未知'}`;
+  summary += t('ai.summaryStats', { time: (avgTime / 1000).toFixed(1), model: fastestModel?.modelName || t('ai.unknownError') });
   return { summary, allContents, responseStats: { total: responses.length, successful: successfulResponses.length, failed: responses.length - successfulResponses.length, avgResponseTime: avgTime, fastestModel: fastestModel?.modelName } };
 };
 
 // 测试模型连接
 export const testModelConnection = async (account) => {
-  const testMessage = [{ role: 'user', content: '请回复"连接成功"四个字' }];
+  const testMessage = [{ role: 'user', content: t('ai.testPrompt') }];
   try {
     const result = await callAIModel(account, testMessage, null);
-    return result.success ? { success: true, message: '连接成功', modelName: account.name, responseTime: result.responseTime, tokenUsage: result.tokenUsage } : { success: false, message: result.content || '连接失败', modelName: account.name, tokenUsage: result.tokenUsage };
+    return result.success ? { success: true, message: t('ai.testSuccess'), modelName: account.name, responseTime: result.responseTime, tokenUsage: result.tokenUsage } : { success: false, message: result.content || t('ai.testFail'), modelName: account.name, tokenUsage: result.tokenUsage };
   } catch (error) {
-    return { success: false, message: error.message || '连接失败', modelName: account.name };
+    return { success: false, message: error.message || t('ai.testFail'), modelName: account.name };
   }
 };
 

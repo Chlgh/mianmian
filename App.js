@@ -7,19 +7,16 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import TabNavigator from './src/navigation/TabNavigator';
 import { cleanOldConversations, migrateAllConversations, migrateFromAiall } from './src/services/storage';
 
-// 仅在原生平台使用 StatusBar
 let StatusBar;
 if (Platform.OS !== 'web') {
   try {
     StatusBar = require('react-native').StatusBar;
-  } catch (e) {
-    // ignore
-  }
+  } catch (e) {}
 }
 
 const AppContent = () => {
   const { colors, isDark } = useTheme();
-  
+
   return (
     <NavigationContainer
       theme={{

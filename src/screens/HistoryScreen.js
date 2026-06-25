@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, BORDER_RADIUS, SPACING, SHADOWS } from '../theme';
 import { getConversations, deleteConversation, clearAllConversations } from '../services/storage';
 import { useTheme } from '../theme/ThemeContext';
+import { t } from '../i18n';
 
 const HistoryScreen = forwardRef((props, ref) => {
   const navigation = useNavigation();
@@ -50,10 +51,10 @@ const HistoryScreen = forwardRef((props, ref) => {
   };
 
   const handleDelete = (id) => {
-    Alert.alert('删除对话', '确定要删除这条对话记录吗？', [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(t('history.deleteTitle'), t('history.deleteConfirmMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: '删除', style: 'destructive',
+        text: t('common.delete'), style: 'destructive',
         onPress: async () => { await deleteConversation(id); await loadConversations(); },
       },
     ]);
@@ -61,10 +62,10 @@ const HistoryScreen = forwardRef((props, ref) => {
 
   const handleClearAll = () => {
     if (conversations.length === 0) return;
-    Alert.alert('清空所有对话', '确定要删除所有对话记录吗？此操作不可恢复。', [
-      { text: '取消', style: 'cancel' },
+    Alert.alert(t('history.deleteAll'), t('history.deleteAllConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: '清空', style: 'destructive',
+        text: t('history.clear'), style: 'destructive',
         onPress: async () => { await clearAllConversations(); await loadConversations(); },
       },
     ]);
@@ -121,11 +122,11 @@ const HistoryScreen = forwardRef((props, ref) => {
             <>
               <View style={styles.itemStats}>
                 <Ionicons name="layers-outline" size={12} color={colors.textTertiary} />
-                <Text style={[styles.itemStatsText, { color: colors.textTertiary }]}>{successModels}/{totalModels} 模型</Text>
+                <Text style={[styles.itemStatsText, { color: colors.textTertiary }]}>{successModels}/{totalModels} {t('history.model')}</Text>
               </View>
               <View style={styles.itemStats}>
                 <Ionicons name="chatbubbles-outline" size={12} color={colors.textTertiary} />
-                <Text style={[styles.itemStatsText, { color: colors.textTertiary }]}>{rounds} 轮对话</Text>
+                <Text style={[styles.itemStatsText, { color: colors.textTertiary }]}>{rounds} {t('common.unit.rounds')}</Text>
               </View>
             </>
           );
@@ -139,20 +140,20 @@ const HistoryScreen = forwardRef((props, ref) => {
       <View style={styles.emptyIconContainer}>
         <Ionicons name="time-outline" size={64} color={colors.border} />
       </View>
-      <Text style={[styles.emptyTitle, { color: colors.text }]}>暂无对话记录</Text>
-      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>开始提问后，对话会自动保存在这里</Text>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('history.empty')}</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('history.emptyDesc')}</Text>
     </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.borderLight }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>历史记录</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('history.title')}</Text>
         {conversations.length > 0 && (
           <View style={styles.headerRight}>
-            <Text style={[styles.totalCount, { color: colors.textTertiary }]}>{conversations.length} 条记录</Text>
+            <Text style={[styles.totalCount, { color: colors.textTertiary }]}>{conversations.length} {t('history.records')}</Text>
             <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn}>
-              <Text style={[styles.clearBtnText, { color: colors.error }]}>清空</Text>
+              <Text style={[styles.clearBtnText, { color: colors.error }]}>{t('history.clear')}</Text>
             </TouchableOpacity>
           </View>
         )}

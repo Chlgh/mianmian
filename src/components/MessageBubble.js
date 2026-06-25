@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, BORDER_RADIUS, SPACING } from '../theme';
 import { useTheme } from '../theme/ThemeContext';
+import { t } from '../i18n';
 import ModelTag from './ModelTag';
 import MarkdownRenderer from './MarkdownRenderer';
 
@@ -42,12 +43,12 @@ const MessageBubble = ({ message, modelColor, modelName, isUser, onCopy, default
             {isLong && (
               <TouchableOpacity onPress={() => setExpanded(!expanded)} style={styles.actionBtn}>
                 <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textSecondary} />
-                <Text style={[styles.actionText, { color: colors.textSecondary }]}>{expanded ? '收起' : '展开'}</Text>
+                <Text style={[styles.actionText, { color: colors.textSecondary }]}>{expanded ? t('msg.collapse') : t('msg.expand')}</Text>
               </TouchableOpacity>
             )}
             {onCopy && <TouchableOpacity onPress={() => onCopy(message)} style={styles.actionBtn}>
               <Ionicons name="copy-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.actionText, { color: colors.textSecondary }]}>复制</Text>
+              <Text style={[styles.actionText, { color: colors.textSecondary }]}>{t('common.copy')}</Text>
             </TouchableOpacity>}
           </View>
         </View>
@@ -72,7 +73,7 @@ const MessageBubble = ({ message, modelColor, modelName, isUser, onCopy, default
         {isLong && (
           <TouchableOpacity onPress={() => setExpanded(!expanded)} style={styles.expandBtn}>
             <Text style={[styles.expandText, { color: colors.textSecondary }]}>
-              {expanded ? '收起' : '展开全部'}
+              {expanded ? t('msg.collapse') : t('msg.expandAll')}
             </Text>
           </TouchableOpacity>
         )}
@@ -80,7 +81,7 @@ const MessageBubble = ({ message, modelColor, modelName, isUser, onCopy, default
       <View style={styles.actions}>
         {onCopy && <TouchableOpacity onPress={() => onCopy(message)} style={styles.actionBtn}>
           <Ionicons name="copy-outline" size={14} color={colors.textTertiary} />
-          <Text style={[styles.actionText, { color: colors.textTertiary }]}>复制</Text>
+          <Text style={[styles.actionText, { color: colors.textTertiary }]}>{t('common.copy')}</Text>
         </TouchableOpacity>}
       </View>
     </View>

@@ -47,6 +47,15 @@ export const COLORS = {
     mimo: '#FF3B30',
     qwen: '#FF9500',
     doubao: '#5856D6',
+    ernie: '#2932E1',
+    zhipu: '#6B4CFF',
+    hunyuan: '#006EFF',
+    baichuan: '#FF6B35',
+    grok: '#1DA1F2',
+    yi: '#00B4D8',
+    spark: '#FF4500',
+    minimax: '#7C3AED',
+    stepfun: '#00C9A7',
   },
   
   inputBackground: '#F5F5F5',
@@ -129,6 +138,13 @@ export const SHADOWS = {
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  modalCard: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 8,
   },
 };
 

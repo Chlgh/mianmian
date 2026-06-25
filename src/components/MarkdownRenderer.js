@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Linking, ScrollView, useWindowDimensions } from 'react-native';
 import { FONTS, SPACING } from '../theme';
 import { useTheme } from '../theme/ThemeContext';
+import { t } from '../i18n';
 
 function parseInline(text) {
   if (!text) return [{ text: '', type: 'text' }];
@@ -85,7 +86,7 @@ const MarkdownRenderer = ({ content, textStyle = {} }) => {
   const { width: SCREEN_W } = useWindowDimensions();
 
   if (!content || typeof content !== 'string') {
-    return <Text style={[styles.paragraph, textStyle]}>(无内容)</Text>;
+    return <Text style={[styles.paragraph, textStyle]}>{t('summary.empty')}</Text>;
   }
 
   try {

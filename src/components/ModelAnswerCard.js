@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, BORDER_RADIUS, SPACING } from '../theme';
 import { useTheme } from '../theme/ThemeContext';
+import { t } from '../i18n';
 import MarkdownRenderer from './MarkdownRenderer';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -20,7 +21,7 @@ const ModelAnswerCard = ({ modelName, modelColor, content, responseTime, tokenSt
       <TouchableOpacity onPress={() => setExpanded(!expanded)} activeOpacity={0.7}>
         <View style={styles.header}>
           <View style={[styles.colorDot, { backgroundColor: modelColor || colors.primary }]} />
-          <Text style={[styles.modelName, { color: colors.text }]} numberOfLines={1}>{modelName || '模型'}</Text>
+          <Text style={[styles.modelName, { color: colors.text }]} numberOfLines={1}>{modelName || t('answer.model')}</Text>
           {responseTime != null && (
             <Text style={[styles.responseTime, { color: colors.textTertiary }]}>
               ⏱ {(responseTime / 1000).toFixed(1)}s
@@ -32,7 +33,7 @@ const ModelAnswerCard = ({ modelName, modelColor, content, responseTime, tokenSt
         </View>
         {tokenStats && tokenStats.count > 0 && (
           <Text style={[styles.tokenText, { color: colors.textTertiary }]}>
-            Token: {tokenStats.input + tokenStats.output} | {tokenStats.count}次
+            Token: {tokenStats.input + tokenStats.output} | {tokenStats.count}{t('common.unit.times')}
           </Text>
         )}
       </TouchableOpacity>
@@ -58,14 +59,14 @@ const ModelAnswerCard = ({ modelName, modelColor, content, responseTime, tokenSt
                 {onCopy && (
                   <TouchableOpacity onPress={() => onCopy(content)} style={styles.actionBtn}>
                     <Ionicons name="copy-outline" size={14} color={colors.textSecondary} />
-                    <Text style={[styles.actionText, { color: colors.textSecondary }]}>复制</Text>
+                    <Text style={[styles.actionText, { color: colors.textSecondary }]}>{t('common.copy')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
             </ScrollView>
           ) : (
             <Text style={[styles.placeholder, { color: colors.textTertiary }]}>
-              内容加载中...
+              {t('answer.loading')}
             </Text>
           )}
         </View>

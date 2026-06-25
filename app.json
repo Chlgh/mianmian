@@ -5,6 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "userInterfaceStyle": "automatic",
     "scheme": "mianmian",
     "ios": {
@@ -27,7 +32,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [],
+    "plugins": [
+      "expo-localization"
+    ],
     "extra": {
       "eas": {
         "projectId": "5b458e5d-e0b2-4cb1-bb82-5f7e861b0eff"

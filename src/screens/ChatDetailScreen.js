@@ -14,6 +14,7 @@ import { callMultipleAIModels, preSearchWeb } from '../services/aiService';
 import MessageBubble from '../components/MessageBubble';
 import LoadingDots from '../components/LoadingDots';
 import MarkdownRenderer from '../components/MarkdownRenderer';
+import { t } from '../i18n';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -39,7 +40,7 @@ const RoundBlock = ({ roundResponses, roundIdx, isCurrentRound, colors, getColor
     <View style={st.roundBlock}>
       <View style={[st.roundLabel, { backgroundColor: colors.surfaceSecondary }]}>
         <Ionicons name="chatbubble-outline" size={10} color={colors.textTertiary} />
-        <Text style={[st.roundLabelText, { color: colors.textTertiary }]}>第 {roundIdx + 1} 轮 · {sortedResponses.length} 个模型</Text>
+        <Text style={[st.roundLabelText, { color: colors.textTertiary }]}>{t('home.round', { n: roundIdx + 1, m: sortedResponses.length })}</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.indicatorBar} contentContainerStyle={st.indicatorContent}>
         {sortedResponses.map((r, i) => (
@@ -59,18 +60,18 @@ const RoundBlock = ({ roundResponses, roundIdx, isCurrentRound, colors, getColor
                 <View style={[st.cardDot, { backgroundColor: getColor(resp.modelId) }]} />
                 <Text style={[st.cardModelName, { color: colors.text }]} numberOfLines={1}>{resp.modelName}</Text>
                 {resp.responseTime != null && <Text style={[st.cardTime, { color: colors.textTertiary }]}>{(resp.responseTime / 1000).toFixed(1)}s</Text>}
-                <TouchableOpacity style={st.cardCopy} onPress={() => { try { require('expo-clipboard').setStringAsync(resp.content || ''); Alert.alert('已复制'); } catch (e) {} }}>
+                <TouchableOpacity style={st.cardCopy} onPress={() => { try { require('expo-clipboard').setStringAsync(resp.content || ''); Alert.alert(t('common.copied')); } catch (e) {} }}>
                   <Ionicons name="copy-outline" size={14} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={st.cardBody} nestedScrollEnabled showsVerticalScrollIndicator>
-                {resp.success ? <MarkdownRenderer content={resp.content || '(返回内容为空)'} /> : <Text style={{ color: colors.error, fontSize: FONTS.sm }}>❌ {resp.content || '调用失败'}</Text>}
+                {resp.success ? <MarkdownRenderer content={resp.content || t('home.emptyContent')} /> : <Text style={{ color: colors.error, fontSize: FONTS.sm }}>❌ {resp.content || t('home.callFailed')}</Text>}
                 {resp.citations && resp.citations.length > 0 && (
                   <View style={st.citationsWrap}>
-                    <Text style={[st.citationsTitle, { color: colors.textTertiary }]}>参考来源</Text>
+                    <Text style={[st.citationsTitle, { color: colors.textTertiary }]}>{t('home.refSource')}</Text>
                     {resp.citations.slice(0, 3).map((c, ci) => (
                       <TouchableOpacity key={ci} style={st.citationItem}
-                        onPress={() => { if (c.url) RNLinking.openURL(c.url).catch(() => Alert.alert('无法打开链接')); }}>
+                        onPress={() => { if (c.url) RNLinking.openURL(c.url).catch(() => Alert.alert(t('home.openLinkFail'))); }}>
                         <Text style={[st.citationText, { color: colors.textSecondary }]} numberOfLines={1}>{c.title || c.url}</Text>
                       </TouchableOpacity>
                     ))}
@@ -83,7 +84,7 @@ const RoundBlock = ({ roundResponses, roundIdx, isCurrentRound, colors, getColor
         ))}
       </ScrollView>
       <View style={st.disclaimer}>
-        <Text style={[st.disclaimerText, { color: colors.textTertiary }]}>AI生成内容可能不准确，请以官方信息为准</Text>
+        <Text style={[st.disclaimerText, { color: colors.textTertiary }]}>{t('home.disclaimer')}</Text>
       </View>
     </View>
   );
@@ -147,13 +148,13 @@ const ChatDetailScreen = ({ route, navigation }) => {
 
   const getModelName = (modelId) => {
     const account = accounts.find(a => a.id === modelId);
-    return account?.name || modelId || 'AI模型';
+    return account?.name || modelId || t('detail.aiModel');
   };
   const getModelColor = (modelId) => COLORS.modelColors[modelId] || '#888';
 
   useEffect(() => {
     loadAccounts();
-    navigation.setOptions({ headerTitle: conversation?.title || '对话详情' });
+    navigation.setOptions({ headerTitle: conversation?.title || t('detail.title') });
   }, []);
 
   useEffect(() => {
@@ -163,14 +164,14 @@ const ChatDetailScreen = ({ route, navigation }) => {
   const loadAccounts = async () => { const accs = await getAccounts(); setAccounts(accs); };
 
   const handleCopy = (text) => {
-    try { const C = require('expo-clipboard'); C.setStringAsync(text); Alert.alert('已复制'); } catch (e) { Alert.alert('复制失败'); }
+    try { const C = require('expo-clipboard'); C.setStringAsync(text); Alert.alert(t('common.copied')); } catch (e) { Alert.alert(t('common.copyFail')); }
   };
 
   const handleSend = async () => {
     const question = inputText.trim();
     if (!question || isLoading) return;
     const enabledAccounts = accounts.filter(a => a.enabled && a.apiKey);
-    if (enabledAccounts.length === 0) { Alert.alert('提示', '请先在"模型管理"中配置至少一个AI模型'); return; }
+    if (enabledAccounts.length === 0) { Alert.alert(t('common.error'), t('detail.noModelHint')); return; }
     setInputText(''); setIsLoading(true); setPhase('searching');
     const userMsg = { role: 'user', content: question, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
@@ -191,7 +192,7 @@ const ChatDetailScreen = ({ route, navigation }) => {
       const uniqueModels = new Set(allAssistant.map(m => m.modelId).filter(Boolean));
       const successModels = new Set(allAssistant.filter(m => m.success !== false).map(m => m.modelId).filter(Boolean));
       await saveConversation({ ...conversation, messages: allMsgs, updatedAt: Date.now(), modelCount: uniqueModels.size || allAssistant.length, successCount: successModels.size || allAssistant.filter(m => m.success !== false).length });
-    } catch (error) { Alert.alert('错误', error.message); }
+    } catch (error) { Alert.alert(t('common.error'), error.message); }
     finally { setIsLoading(false); setPhase(''); }
   };
 
@@ -202,12 +203,12 @@ const ChatDetailScreen = ({ route, navigation }) => {
         contentContainerStyle={st.msgContent}
         keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {rounds.length === 0 && !isLoading && (
-          <View style={st.emptyTip}><Text style={{ color: colors.textTertiary, fontSize: FONTS.sm }}>暂无消息</Text></View>
+          <View style={st.emptyTip}><Text style={{ color: colors.textTertiary, fontSize: FONTS.sm }}>{t('detail.empty')}</Text></View>
         )}
         {rounds.map((round, roundIdx) => (
           <View key={`round-${roundIdx}`}>
             <MessageBubble message={round.user.content} isUser={true}
-              onCopy={(t) => { try { require('expo-clipboard').setStringAsync(t || ''); Alert.alert('已复制'); } catch (e) {} }} />
+              onCopy={(text) => { try { require('expo-clipboard').setStringAsync(text || ''); Alert.alert(t('common.copied')); } catch (e) {} }} />
             <RoundBlock roundResponses={round.responses} roundIdx={roundIdx} isCurrentRound={false}
               colors={colors} getColor={getModelColor} />
           </View>
@@ -218,7 +219,7 @@ const ChatDetailScreen = ({ route, navigation }) => {
             <View style={[st.statusBar, { backgroundColor: colors.surfaceSecondary }]}>
               <LoadingDots color={colors.primary} size={8} />
               <Text style={[st.statusText, { color: colors.textSecondary }]}>
-                {phase === 'searching' ? '🌐 正在搜索网络信息...' : '🤔 AI 正在思考中...'}
+                {phase === 'searching' ? t('detail.searching') : t('detail.thinking')}
               </Text>
             </View>
           </View>
@@ -237,7 +238,7 @@ const ChatDetailScreen = ({ route, navigation }) => {
         <View style={[st.inputBox, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder }]}>
           <TextInput style={[st.input, { color: colors.text }]}
             value={inputText} onChangeText={setInputText}
-            placeholder="继续提问..." placeholderTextColor={colors.textTertiary}
+            placeholder={t('detail.placeholder')} placeholderTextColor={colors.textTertiary}
             multiline maxLength={2000} editable={!isLoading}
             onSubmitEditing={handleSend} returnKeyType="send" />
           <TouchableOpacity onPress={handleSend} disabled={!inputText.trim() || isLoading} style={st.sendBtn}>

@@ -185,6 +185,18 @@ const getDefaultAccounts = () => [
   { id: 'gemini', name: 'Gemini', apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', apiKey: '', model: 'gemini-2.0-flash', enabled: true, color: '#0066FF', format: 'gemini', webSearch: true },
   { id: 'deepseek', name: 'DeepSeek', apiEndpoint: 'https://api.deepseek.com/chat/completions', apiKey: '', model: 'deepseek-chat', enabled: true, color: '#6366F1', format: 'openai', webSearch: true },
   { id: 'moonshot', name: 'Kimi', apiEndpoint: 'https://api.moonshot.cn/v1/chat/completions', apiKey: '', model: 'moonshot-v1-8k', enabled: true, color: '#AF52DE', format: 'openai', webSearch: true },
+  { id: 'mimo', name: 'MiMo', apiEndpoint: 'https://api.xiaomimimo.com/v1/chat/completions', apiKey: '', model: 'mimo-v2.5', enabled: true, color: '#FF3B30', format: 'openai', webSearch: true },
+  { id: 'qwen', name: '通义千问', apiEndpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', apiKey: '', model: 'qwen-turbo', enabled: true, color: '#FF9500', format: 'openai', webSearch: true },
+  { id: 'doubao', name: '豆包', apiEndpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', apiKey: '', model: 'ep-20250101000000-xxxxx', enabled: true, color: '#5856D6', format: 'openai', webSearch: true },
+  { id: 'ernie', name: '文心', apiEndpoint: 'https://qianfan.baidubce.com/v2/chat/completions', apiKey: '', model: 'ernie-4.5-turbo-128k', enabled: true, color: '#2932E1', format: 'openai', webSearch: true },
+  { id: 'zhipu', name: '智谱GLM', apiEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', apiKey: '', model: 'glm-4.7-flash', enabled: true, color: '#6B4CFF', format: 'openai', webSearch: true },
+  { id: 'hunyuan', name: '腾讯混元', apiEndpoint: 'https://api.hunyuan.cloud.tencent.com/v1/chat/completions', apiKey: '', model: 'hunyuan-turbos-latest', enabled: true, color: '#006EFF', format: 'openai', webSearch: true },
+  { id: 'baichuan', name: '百川', apiEndpoint: 'https://api.baichuan-ai.com/v1/chat/completions', apiKey: '', model: 'Baichuan4', enabled: true, color: '#FF6B35', format: 'openai', webSearch: true },
+  { id: 'grok', name: 'Grok', apiEndpoint: 'https://api.x.ai/v1/chat/completions', apiKey: '', model: 'grok-3', enabled: true, color: '#1DA1F2', format: 'openai', webSearch: true },
+  { id: 'yi', name: '零一万物', apiEndpoint: 'https://api.lingyiwanwu.com/v1/chat/completions', apiKey: '', model: 'yi-large', enabled: true, color: '#00B4D8', format: 'openai', webSearch: true },
+  { id: 'spark', name: '讯飞星火', apiEndpoint: 'https://spark-api-open.xf-yun.com/v1/chat/completions', apiKey: '', model: '4.0Ultra', enabled: true, color: '#FF4500', format: 'openai', webSearch: true },
+  { id: 'minimax', name: 'MiniMax', apiEndpoint: 'https://api.minimaxi.com/v1/chat/completions', apiKey: '', model: 'MiniMax-M3', enabled: true, color: '#7C3AED', format: 'openai', webSearch: true },
+  { id: 'stepfun', name: '阶跃星辰', apiEndpoint: 'https://api.stepfun.com/v1/chat/completions', apiKey: '', model: 'step-3.5-flash', enabled: true, color: '#00C9A7', format: 'openai', webSearch: true },
 ];
 
 // ==================== 设置 ====================

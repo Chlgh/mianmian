@@ -7,16 +7,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS, FONTS, BORDER_RADIUS, SPACING } from '../theme';
+import { COLORS, FONTS, BORDER_RADIUS, SPACING, SHADOWS } from '../theme';
 import { getAccounts, saveAccounts, getSettings, saveSettings, getConversations } from '../services/storage';
 import { testModelConnection } from '../services/aiService';
 import { useTheme } from '../theme/ThemeContext';
+import { t, getModelDisplayName } from '../i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 数字格式化：超过1万显示万，超过1亿显示亿，保留2位小数
 const formatNumber = (num) => {
-  if (num >= 100000000) return (num / 100000000).toFixed(2) + '亿';
-  if (num >= 10000) return (num / 10000).toFixed(2) + '万';
+  if (num >= 100000000) return (num / 100000000).toFixed(2) + t('format.yi');
+  if (num >= 10000) return (num / 10000).toFixed(2) + t('format.wan');
   return num.toLocaleString();
 };
 
@@ -29,10 +30,19 @@ const PRESET_MODELS = [
   { id: 'mimo', name: 'MiMo', apiEndpoint: 'https://api.xiaomimimo.com/v1/chat/completions', model: 'mimo-v2.5', color: '#FF3B30', format: 'openai', docUrl: 'https://mimo.mi.com/docs/zh-CN/api/chat/openai-api', webSearch: true },
   { id: 'qwen', name: '通义千问', apiEndpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-turbo', color: '#FF9500', format: 'openai', docUrl: 'https://help.aliyun.com/zh/model-studio/developer-reference/get-api-key', webSearch: true },
   { id: 'doubao', name: '豆包 (火山引擎)', apiEndpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'ep-20250101000000-xxxxx', color: '#5856D6', format: 'openai', docUrl: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey', webSearch: true },
+  { id: 'ernie', name: '文心', apiEndpoint: 'https://qianfan.baidubce.com/v2/chat/completions', model: 'ernie-4.5-turbo-128k', color: '#2932E1', format: 'openai', docUrl: 'https://console.bce.baidu.com/qianfan/ais/console/apiKey', webSearch: true },
+  { id: 'zhipu', name: '智谱GLM', apiEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4.7-flash', color: '#6B4CFF', format: 'openai', docUrl: 'https://bigmodel.cn/usercenter/proj-mgmt/apikeys', webSearch: true },
+  { id: 'hunyuan', name: '腾讯混元', apiEndpoint: 'https://api.hunyuan.cloud.tencent.com/v1/chat/completions', model: 'hunyuan-turbos-latest', color: '#006EFF', format: 'openai', docUrl: 'https://console.cloud.tencent.com/hunyuan/start', webSearch: true },
+  { id: 'baichuan', name: '百川', apiEndpoint: 'https://api.baichuan-ai.com/v1/chat/completions', model: 'Baichuan4', color: '#FF6B35', format: 'openai', docUrl: 'https://platform.baichuan-ai.com/console/apikey', webSearch: true },
+  { id: 'grok', name: 'Grok', apiEndpoint: 'https://api.x.ai/v1/chat/completions', model: 'grok-3', color: '#1DA1F2', format: 'openai', docUrl: 'https://console.x.ai/team/default/api-keys', webSearch: true },
+  { id: 'yi', name: '零一万物', apiEndpoint: 'https://api.lingyiwanwu.com/v1/chat/completions', model: 'yi-large', color: '#00B4D8', format: 'openai', docUrl: 'https://platform.lingyiwanwu.com/apikey', webSearch: true },
+  { id: 'spark', name: '讯飞星火', apiEndpoint: 'https://spark-api-open.xf-yun.com/v1/chat/completions', model: '4.0Ultra', color: '#FF4500', format: 'openai', docUrl: 'https://console.xfyun.cn/services/bm4', webSearch: true },
+  { id: 'minimax', name: 'MiniMax', apiEndpoint: 'https://api.minimaxi.com/v1/chat/completions', model: 'MiniMax-M3', color: '#7C3AED', format: 'openai', docUrl: 'https://platform.minimaxi.com/user-center/basic-information/interface-key', webSearch: true },
+  { id: 'stepfun', name: '阶跃星辰', apiEndpoint: 'https://api.stepfun.com/v1/chat/completions', model: 'step-3.5-flash', color: '#00C9A7', format: 'openai', docUrl: 'https://platform.stepfun.com/interface-key', webSearch: true },
 ];
 
 const AccountScreen = forwardRef((props, ref) => {
-  const { isDark, themeMode, setThemeMode, colors, modelTestStatus, setModelTestStatus } = useTheme();
+  const { isDark, themeMode, setThemeMode, locale, rawLocale, setLocale, colors, modelTestStatus, setModelTestStatus, triggerNewsRefresh } = useTheme();
   const [accounts, setAccounts] = useState([]);
   const [editingModel, setEditingModel] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -42,9 +52,19 @@ const AccountScreen = forwardRef((props, ref) => {
   const [tokenUsage, setTokenUsage] = useState({});
   const [totalRounds, setTotalRounds] = useState(0);
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const testResultsRef = useRef({});
   const scrollRef = useRef(null);
+  const localeAtOpenRef = useRef(null);
+
+  const closeSettings = useCallback(() => {
+    setSettingsModalVisible(false);
+    if (localeAtOpenRef.current !== null && localeAtOpenRef.current !== rawLocale) {
+      triggerNewsRefresh();
+    }
+    localeAtOpenRef.current = null;
+  }, [rawLocale, triggerNewsRefresh]);
 
   useImperativeHandle(ref, () => ({
     scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
@@ -72,7 +92,7 @@ const AccountScreen = forwardRef((props, ref) => {
       if (configured.length === 0) return;
       AsyncStorage.setItem(LAST_TEST_KEY, String(Date.now())).catch(() => {});
       configured.forEach(m => {
-        testResultsRef.current = { ...testResultsRef.current, [m.id]: { testing: true, message: '测试中...' } };
+        testResultsRef.current = { ...testResultsRef.current, [m.id]: { testing: true, message: t('account.testingShort') } };
       });
       configured.forEach(async (model) => {
         try {
@@ -80,7 +100,7 @@ const AccountScreen = forwardRef((props, ref) => {
           const tokens = r.tokenUsage || {};
           const tokenCount = (tokens.input || 0) + (tokens.output || 0);
           testResultsRef.current = { ...testResultsRef.current, [model.id]: {
-            success: r.success, message: r.success ? '连接正常' : (r.message || '连接失败'),
+            success: r.success, message: r.success ? t('account.connectOk') : (r.message || t('account.connectFail')),
             responseTime: r.responseTime, tokenCount,
           }};
           setTestResults({ ...testResultsRef.current });
@@ -134,7 +154,7 @@ const AccountScreen = forwardRef((props, ref) => {
     try {
       if (configured.length > 0) {
         configured.forEach(m => {
-          testResultsRef.current = { ...testResultsRef.current, [m.id]: { testing: true, message: '测试中...' } };
+          testResultsRef.current = { ...testResultsRef.current, [m.id]: { testing: true, message: t('account.testingShort') } };
         });
         setTestResults({ ...testResultsRef.current });
         const testPromises = configured.map(async (model) => {
@@ -143,7 +163,7 @@ const AccountScreen = forwardRef((props, ref) => {
             const tokens = r.tokenUsage || {};
             const tokenCount = (tokens.input || 0) + (tokens.output || 0);
             testResultsRef.current = { ...testResultsRef.current, [model.id]: {
-              success: r.success, message: r.success ? '连接正常' : (r.message || '连接失败'),
+              success: r.success, message: r.success ? t('account.connectOk') : (r.message || t('account.connectFail')),
               responseTime: r.responseTime, tokenCount,
             }};
             setTestResults({ ...testResultsRef.current });
@@ -182,14 +202,14 @@ const AccountScreen = forwardRef((props, ref) => {
   const handleEdit = (model) => { setEditingModel(model); setIsNewCustom(false); setEditForm({ apiKey: model.apiKey || '', model: model.model || '', apiEndpoint: model.apiEndpoint || '' }); setModalVisible(true); };
 
   const handleTest = async (model) => {
-    testResultsRef.current = { ...testResultsRef.current, [model.id]: { testing: true, message: '测试连接中...' } };
+    testResultsRef.current = { ...testResultsRef.current, [model.id]: { testing: true, message: t('account.testConnecting') } };
     setTestResults({ ...testResultsRef.current });
     try {
       const r = await testModelConnection(model);
       const tokens = r.tokenUsage || {};
       const tokenCount = (tokens.input || 0) + (tokens.output || 0);
       testResultsRef.current = { ...testResultsRef.current, [model.id]: {
-        success: r.success, message: r.success ? '连接正常' : (r.message || '连接失败'),
+        success: r.success, message: r.success ? t('account.connectOk') : (r.message || t('account.connectFail')),
         responseTime: r.responseTime, tokenCount,
       }};
       setTestResults({ ...testResultsRef.current });
@@ -232,29 +252,29 @@ const AccountScreen = forwardRef((props, ref) => {
   };
 
   const handleAddCustomModel = () => {
-    setEditingModel({ id: `_new_${Date.now()}`, name: '自定义模型', apiEndpoint: 'https://api.example.com/v1/chat/completions', apiKey: '', model: '', enabled: true, color: '#6B7280', format: 'openai' });
+    setEditingModel({ id: `_new_${Date.now()}`, name: t('account.addCustom'), apiEndpoint: 'https://api.example.com/v1/chat/completions', apiKey: '', model: '', enabled: true, color: '#6B7280', format: 'openai' });
     setIsNewCustom(true);
     setEditForm({ apiKey: '', model: '', apiEndpoint: 'https://api.example.com/v1/chat/completions' });
     setModalVisible(true);
   };
 
   const handleSaveCustom = async () => {
-    if (!editForm.apiKey || !editForm.model) { Alert.alert('提示', '请填写 API Key 和模型名称'); return; }
-    const cm = { id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: editForm.model || '自定义模型', apiKey: editForm.apiKey, model: editForm.model, apiEndpoint: editForm.apiEndpoint, enabled: true, color: '#6B7280', format: 'openai', webSearch: false };
+    if (!editForm.apiKey || !editForm.model) { Alert.alert(t('common.error'), t('account.fillHint')); return; }
+    const cm = { id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, name: editForm.model || t('account.addCustom'), apiKey: editForm.apiKey, model: editForm.model, apiEndpoint: editForm.apiEndpoint, enabled: true, color: '#6B7280', format: 'openai', webSearch: false };
     await persist([cm, ...accounts]);
     setModalVisible(false); setEditingModel(null); setIsNewCustom(false);
     handleTest(cm);
   };
 
   const handleLongPress = (model) => {
-    Alert.alert('删除模型', `确定要删除「${model.name}」吗？`, [
-      { text: '取消', style: 'cancel' },
-      { text: '删除', style: 'destructive', onPress: async () => { await persist(accounts.filter(a => a.id !== model.id)); }},
+    Alert.alert(t('account.deleteModel'), t('account.deleteConfirm', { name: model.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: async () => { await persist(accounts.filter(a => a.id !== model.id)); }},
     ]);
   };
 
   const addPreset = async (preset) => {
-    if (accounts.find(a => a.id === preset.id)) { Alert.alert('提示', `${preset.name} 已存在`); return; }
+    if (accounts.find(a => a.id === preset.id)) { Alert.alert(t('common.error'), t('account.existsHint', { name: preset.name })); return; }
     const newModel = { ...preset, apiKey: '', enabled: true };
     await persist([newModel, ...accounts]);
     scrollRef.current?.scrollTo?.({ y: 0, animated: true });
@@ -290,10 +310,17 @@ const AccountScreen = forwardRef((props, ref) => {
   const configuredCount = accounts.filter(a => a.apiKey).length;
   const enabledCount = accounts.filter(a => a.enabled && a.apiKey).length;
   const totalTokens = Object.values(tokenUsage).reduce((a, b) => a + (b.input + b.output || 0), 0);
+
   const themeOptions = [
-    { key: 'light', label: '浅色', icon: 'sunny' },
-    { key: 'dark', label: '深色', icon: 'moon' },
-    { key: 'system', label: '自动', icon: 'text', text: 'A' },
+    { key: 'light', label: t('account.theme.light'), icon: 'sunny' },
+    { key: 'dark', label: t('account.theme.dark'), icon: 'moon' },
+    { key: 'system', label: t('account.theme.auto'), icon: 'text', text: 'A' },
+  ];
+
+  const langOptions = [
+    { key: 'zh-CN', label: t('account.lang.zh') },
+    { key: 'en', label: t('account.lang.en') },
+    { key: 'system', label: t('account.lang.system') },
   ];
 
   const getModelStats = (modelId) => {
@@ -309,24 +336,13 @@ const AccountScreen = forwardRef((props, ref) => {
       onTouchMove={dragIdx >= 0 ? (e) => handleTouchMove(e.nativeEvent.pageY) : undefined}
       onTouchEnd={dragIdx >= 0 ? handleTouchEnd : undefined}>
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>模型管理</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('account.title')}</Text>
         <View style={styles.headerRight}>
-          {themeOptions.map(opt => {
-            const selected = themeMode === opt.key;
-            const bgColor = selected ? (isDark ? colors.surface : colors.surfaceSecondary) : colors.surfaceSecondary;
-            const iconColor = selected ? (isDark ? colors.text : colors.text) : colors.textSecondary;
-            return (
-              <TouchableOpacity key={opt.key}
-                style={[styles.themeBtn, { backgroundColor: bgColor, borderColor: selected ? (isDark ? colors.textTertiary : colors.text) : 'transparent', borderWidth: selected ? 1.5 : 0 }]}
-                onPress={() => setThemeMode(opt.key)}>
-                {opt.text ? (
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: iconColor }}>{opt.text}</Text>
-                ) : (
-                  <Ionicons name={opt.icon} size={14} color={iconColor} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
+          <TouchableOpacity
+            style={[styles.themeBtn, { backgroundColor: colors.surfaceSecondary }]}
+            onPress={() => { localeAtOpenRef.current = rawLocale; setSettingsModalVisible(true); }}>
+            <Ionicons name="settings-outline" size={16} color={colors.text} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -336,14 +352,14 @@ const AccountScreen = forwardRef((props, ref) => {
           <TouchableOpacity onPress={() => setTokenModalVisible(true)}>
             <Text style={[styles.statNumber, { color: colors.text }]}>{formatNumber(totalTokens)}</Text>
           </TouchableOpacity>
-          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>累计Token</Text>
+          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>{t('account.tokenStats')}</Text>
         </View>
         <Text style={[styles.statDivider, { color: colors.divider }]}>|</Text>
-        <View style={styles.statItem}><Text style={[styles.statNumber, { color: colors.text }]}>{formatNumber(totalRounds)}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>对话轮数</Text></View>
+        <View style={styles.statItem}><Text style={[styles.statNumber, { color: colors.text }]}>{formatNumber(totalRounds)}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>{t('account.rounds')}</Text></View>
         <Text style={[styles.statDivider, { color: colors.divider }]}>|</Text>
-        <View style={styles.statItem}><Text style={[styles.statNumber, { color: colors.text }]}>{configuredCount}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>已配置</Text></View>
+        <View style={styles.statItem}><Text style={[styles.statNumber, { color: colors.text }]}>{configuredCount}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>{t('account.configured')}</Text></View>
         <Text style={[styles.statDivider, { color: colors.divider }]}>|</Text>
-        <View style={styles.statItem}><Text style={[styles.statNumber, { color: colors.success }]}>{enabledCount}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>已启用</Text></View>
+        <View style={styles.statItem}><Text style={[styles.statNumber, { color: colors.success }]}>{enabledCount}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>{t('account.enabled')}</Text></View>
       </View>
 
       {/* 可滑动模型列表 */}
@@ -386,10 +402,10 @@ const AccountScreen = forwardRef((props, ref) => {
                     <Ionicons name="reorder-three" size={18} color={isDragged ? colors.primary : colors.textTertiary} />
                   </View>
                   <View style={[styles.colorDot, { backgroundColor: model.color }]} />
-                  <Text style={[styles.modelName, { color: colors.text }]} numberOfLines={1}>{model.name}</Text>
+                  <Text style={[styles.modelName, { color: colors.text }]} numberOfLines={1}>{getModelDisplayName(model.id) || model.name}</Text>
                   {!isConfigured && (
                     <View style={[styles.unconfiguredBadge, { backgroundColor: colors.surfaceSecondary, borderColor: colors.borderLight }]}>
-                      <Text style={{ fontSize: 9, color: colors.textTertiary }}>未配置</Text>
+                      <Text style={{ fontSize: 9, color: colors.textTertiary }}>{t('account.notConfigured')}</Text>
                     </View>
                   )}
                 </View>
@@ -403,7 +419,7 @@ const AccountScreen = forwardRef((props, ref) => {
               {/* 模型名 */}
               <View style={styles.cardSubRow}>
                 <Text style={[styles.modelSub, { color: colors.textTertiary }]} numberOfLines={1}>
-                  {model.apiKey ? model.model : '未配置 API Key'}
+                  {model.apiKey ? model.model : t('account.noApiKey')}
                 </Text>
               </View>
 
@@ -431,11 +447,11 @@ const AccountScreen = forwardRef((props, ref) => {
                   </View>
                   <View style={styles.statChip}>
                     <Ionicons name="time-outline" size={10} color={colors.textTertiary} />
-                    <Text style={[styles.statChipText, { color: colors.textTertiary }]}>{stats.avgTime}ms 均</Text>
+                    <Text style={[styles.statChipText, { color: colors.textTertiary }]}>{stats.avgTime}ms {t('account.avgTime')}</Text>
                   </View>
                   <View style={styles.statChip}>
                     <Ionicons name="chatbubble-outline" size={10} color={colors.textTertiary} />
-                    <Text style={[styles.statChipText, { color: colors.textTertiary }]}>{stats.count}次</Text>
+                    <Text style={[styles.statChipText, { color: colors.textTertiary }]}>{stats.count}{t('common.unit.times')}</Text>
                   </View>
                 </View>
               )}
@@ -446,21 +462,21 @@ const AccountScreen = forwardRef((props, ref) => {
                   <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surfaceSecondary }]}
                     onPress={() => handleTest(model)} disabled={isTesting}>
                     <Ionicons name="flash" size={12} color={model.color} />
-                    <Text style={[styles.actionText, { color: colors.textSecondary }]}>{isTesting ? '测试中' : '测试'}</Text>
+                    <Text style={[styles.actionText, { color: colors.textSecondary }]}>{isTesting ? t('account.testing') : t('account.test')}</Text>
                   </TouchableOpacity>
                 )}
                 {(() => { const p = PRESET_MODELS.find(p => p.id === model.id); return p?.docUrl ? (
                   <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surfaceSecondary }]}
                     onPress={() => Linking.openURL(p.docUrl)}>
                     <Ionicons name="document-text-outline" size={12} color={colors.textSecondary} />
-                    <Text style={[styles.actionText, { color: colors.textSecondary }]}>文档</Text>
+                    <Text style={[styles.actionText, { color: colors.textSecondary }]}>{t('account.doc')}</Text>
                   </TouchableOpacity>
                 ) : null; })()}
                 <View style={{ flex: 1 }} />
                 <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surfaceSecondary }]}
                   onPress={() => handleEdit(model)}>
                   <Ionicons name="pencil" size={12} color={colors.textSecondary} />
-                  <Text style={[styles.actionText, { color: colors.textSecondary }]}>配置</Text>
+                  <Text style={[styles.actionText, { color: colors.textSecondary }]}>{t('account.config')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -471,14 +487,14 @@ const AccountScreen = forwardRef((props, ref) => {
           <TouchableOpacity key={preset.id} style={[{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, marginBottom: SPACING.sm, borderColor: colors.border }]}
             onPress={() => addPreset(preset)} activeOpacity={0.7}>
             <Ionicons name="add-circle-outline" size={18} color={preset.color} />
-            <Text style={[{ fontSize: FONTS.sm, color: colors.textSecondary }]}>添加 {preset.name}</Text>
+            <Text style={[{ fontSize: FONTS.sm, color: colors.textSecondary }]}>{t('account.addModel', { name: getModelDisplayName(preset.id) || preset.name })}</Text>
           </TouchableOpacity>
         ))}
 
         <TouchableOpacity style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderStyle: 'dashed', marginBottom: SPACING.xl, borderColor: colors.border }]}
           onPress={handleAddCustomModel} activeOpacity={0.7}>
           <Ionicons name="code-slash-outline" size={18} color={colors.primary} />
-          <Text style={[{ fontSize: FONTS.sm, color: colors.primary }]}>添加自定义模型</Text>
+          <Text style={[{ fontSize: FONTS.sm, color: colors.primary }]}>{t('account.addCustom')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -486,16 +502,16 @@ const AccountScreen = forwardRef((props, ref) => {
         <KeyboardAvoidingView style={[styles.modalContainer, { backgroundColor: colors.background }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl + 40, paddingBottom: SPACING.md, borderBottomWidth: 1, borderBottomColor: colors.borderLight }]}>
-            <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={[{ fontSize: FONTS.md, color: colors.textSecondary }]}>取消</Text></TouchableOpacity>
-            <Text style={[{ fontSize: FONTS.lg, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'center' }]}>{isNewCustom ? '添加模型' : '配置'} {editingModel?.name}</Text>
-            <TouchableOpacity onPress={isNewCustom ? handleSaveCustom : handleSave}><Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.primary }]}>保存</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={[{ fontSize: FONTS.md, color: colors.textSecondary }]}>{t('common.cancel')}</Text></TouchableOpacity>
+            <Text style={[{ fontSize: FONTS.lg, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'center' }]}>{isNewCustom ? t('account.addModelTitle') : t('account.configTitle')}</Text>
+            <TouchableOpacity onPress={isNewCustom ? handleSaveCustom : handleSave}><Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.primary }]}>{t('common.save')}</Text></TouchableOpacity>
           </View>
           <ScrollView style={{ flex: 1, paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl }}>
             <View style={{ marginBottom: SPACING.xl }}>
-              <Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.text, marginBottom: SPACING.sm }]}>模型名称</Text>
+              <Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.text, marginBottom: SPACING.sm }]}>{t('account.modelDisplayName')}</Text>
               <TextInput style={[{ borderRadius: BORDER_RADIUS.md, borderWidth: 1, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, fontSize: FONTS.md, backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
                 value={editingModel?.name || ''} onChangeText={t => setEditingModel(p => ({ ...p, name: t }))}
-                placeholder="模型显示名称" placeholderTextColor={colors.textTertiary} />
+                placeholder={t('account.modelDisplayName')} placeholderTextColor={colors.textTertiary} />
             </View>
             <View style={{ marginBottom: SPACING.xl }}>
               <Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.text, marginBottom: SPACING.sm }]}>API 地址</Text>
@@ -507,13 +523,13 @@ const AccountScreen = forwardRef((props, ref) => {
               <Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.text, marginBottom: SPACING.sm }]}>API Key *</Text>
               <TextInput style={[{ borderRadius: BORDER_RADIUS.md, borderWidth: 1, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, fontSize: FONTS.md, backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
                 value={editForm.apiKey} onChangeText={t => setEditForm(p => ({ ...p, apiKey: t }))}
-                placeholder="输入你的 API Key" placeholderTextColor={colors.textTertiary} secureTextEntry autoCapitalize="none" autoCorrect={false} />
+                placeholder={t('account.enterApiKey')} placeholderTextColor={colors.textTertiary} secureTextEntry autoCapitalize="none" autoCorrect={false} />
             </View>
             <View style={{ marginBottom: SPACING.xl }}>
-              <Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.text, marginBottom: SPACING.sm }]}>模型名称 (API参数) *</Text>
+              <Text style={[{ fontSize: FONTS.md, fontWeight: '600', color: colors.text, marginBottom: SPACING.sm }]}>{t('account.modelNameApi')}</Text>
               <TextInput style={[{ borderRadius: BORDER_RADIUS.md, borderWidth: 1, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, fontSize: FONTS.md, backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
                 value={editForm.model} onChangeText={t => setEditForm(p => ({ ...p, model: t }))}
-                placeholder="例如: gpt-4o" placeholderTextColor={colors.textTertiary} autoCapitalize="none" autoCorrect={false} />
+                placeholder={t('account.modelNamePlaceholder')} placeholderTextColor={colors.textTertiary} autoCapitalize="none" autoCorrect={false} />
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -521,43 +537,103 @@ const AccountScreen = forwardRef((props, ref) => {
 
       {/* Token统计弹窗 */}
       <Modal visible={tokenModalVisible} transparent animationType="fade" onRequestClose={() => setTokenModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setTokenModalVisible(false)}>
-          <View style={[styles.tokenModal, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.tokenModalTitle, { color: colors.text }]}>Token 统计详情</Text>
+        <View style={{ flex: 1 }}>
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.5)' }]} />
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setTokenModalVisible(false)}>
+            <View style={[styles.tokenModal, { backgroundColor: isDark ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)' }, SHADOWS.modalCard]}>
+            <Text style={[styles.tokenModalTitle, { color: colors.text }]}>{t('account.tokenDetail')}</Text>
             <ScrollView style={styles.tokenModalScroll}>
               {Object.entries(tokenUsage).length === 0 ? (
-                <Text style={[styles.tokenModalEmpty, { color: colors.textTertiary }]}>暂无统计数据</Text>
+                <Text style={[styles.tokenModalEmpty, { color: colors.textTertiary }]}>{t('account.tokenEmpty')}</Text>
               ) : (
                 Object.entries(tokenUsage).map(([modelId, data]) => {
                   const account = accounts.find(a => a.id === modelId);
-                  const name = account?.name || modelId;
+                  const name = getModelDisplayName(modelId) || account?.name || modelId;
                   const color = account?.color || colors.textTertiary;
                   return (
                     <View key={modelId} style={[styles.tokenModelRow, { borderBottomColor: colors.borderLight }]}>
                       <View style={styles.tokenModelHeader}>
                         <View style={[styles.colorDot, { backgroundColor: color }]} />
                         <Text style={[styles.tokenModelName, { color: colors.text }]}>{name}</Text>
-                        <Text style={[styles.tokenModelCount, { color: colors.textTertiary }]}>{data.count}次</Text>
+                        <Text style={[styles.tokenModelCount, { color: colors.textTertiary }]}>{data.count}{t('common.unit.times')}</Text>
                       </View>
                       <View style={styles.tokenDetailRow}>
-                        <Text style={[styles.tokenDetail, { color: colors.textSecondary }]}>输入: {formatNumber(data.input)}</Text>
-                        <Text style={[styles.tokenDetail, { color: colors.textSecondary }]}>输出: {formatNumber(data.output)}</Text>
-                        <Text style={[styles.tokenDetail, { color: colors.textSecondary }]}>合计: {formatNumber(data.input + data.output)}</Text>
+                        <Text style={[styles.tokenDetail, { color: colors.textSecondary }]}>{t('account.tokenInput')}{formatNumber(data.input)}</Text>
+                        <Text style={[styles.tokenDetail, { color: colors.textSecondary }]}>{t('account.tokenOutput')}{formatNumber(data.output)}</Text>
+                        <Text style={[styles.tokenDetail, { color: colors.textSecondary }]}>{t('account.tokenTotal')}{formatNumber(data.input + data.output)}</Text>
                       </View>
                       {data.totalTime > 0 && data.count > 0 && (
-                        <Text style={[styles.tokenAvgTime, { color: colors.textTertiary }]}>平均耗时: {Math.round(data.totalTime / data.count)}ms</Text>
+                        <Text style={[styles.tokenAvgTime, { color: colors.textTertiary }]}>{t('account.tokenAvgTime')}{Math.round(data.totalTime / data.count)}ms</Text>
                       )}
                     </View>
                   );
                 })
               )}
             </ScrollView>
-            <Text style={[styles.tokenModalDisclaimer, { color: colors.textTertiary }]}>软件统计可能不准确，以各模型控制台数字为准</Text>
+            <Text style={[styles.tokenModalDisclaimer, { color: colors.textTertiary }]}>{t('account.tokenDisclaimer')}</Text>
             <TouchableOpacity style={[styles.tokenModalClose, { backgroundColor: colors.surfaceSecondary }]} onPress={() => setTokenModalVisible(false)}>
-              <Text style={[styles.tokenModalCloseText, { color: colors.text }]}>关闭</Text>
+              <Text style={[styles.tokenModalCloseText, { color: colors.text }]}>{t('common.close')}</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* 设置弹窗 */}
+      <Modal visible={settingsModalVisible} transparent animationType="fade" onRequestClose={closeSettings}>
+        <View style={{ flex: 1 }}>
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.5)' }]} />
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeSettings}>
+            <View style={[styles.tokenModal, { backgroundColor: isDark ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)' }, SHADOWS.modalCard]} onStartShouldSetResponder={() => true}>
+            <Text style={[styles.tokenModalTitle, { color: colors.text }]}>{t('account.settings')}</Text>
+            
+            <Text style={{ fontSize: FONTS.sm, fontWeight: '600', color: colors.textSecondary, marginTop: SPACING.md, marginBottom: SPACING.sm }}>{t('account.settings.themeLabel')}</Text>
+            <View style={{ flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md }}>
+              {themeOptions.map(opt => {
+                const selected = themeMode === opt.key;
+                return (
+                  <TouchableOpacity key={opt.key}
+                    style={{ flex: 1, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.md, alignItems: 'center', backgroundColor: selected ? colors.surfaceSecondary : 'transparent', borderWidth: 1.5, borderColor: selected ? (isDark ? colors.textTertiary : colors.text) : 'transparent' }}
+                    onPress={() => setThemeMode(opt.key)}>
+                    {opt.text ? (
+                      <Text style={{ fontSize: 14, fontWeight: selected ? '700' : '400', color: selected ? colors.text : colors.textSecondary }}>{opt.text}</Text>
+                    ) : (
+                      <Ionicons name={opt.icon} size={16} color={selected ? colors.text : colors.textSecondary} />
+                    )}
+                    <Text style={{ fontSize: FONTS.sm, fontWeight: selected ? '600' : '400', color: selected ? colors.text : colors.textSecondary, marginTop: 2 }}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={{ fontSize: FONTS.sm, fontWeight: '600', color: colors.textSecondary, marginBottom: SPACING.sm }}>{t('account.settings.langLabel')}</Text>
+            <View style={{ flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md }}>
+              {langOptions.map(opt => {
+                const selected = rawLocale === opt.key;
+                return (
+                  <TouchableOpacity key={opt.key}
+                    style={{ flex: 1, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.md, alignItems: 'center', backgroundColor: selected ? colors.surfaceSecondary : 'transparent', borderWidth: 1.5, borderColor: selected ? (isDark ? colors.textTertiary : colors.text) : 'transparent' }}
+                    onPress={() => setLocale(opt.key)}>
+                    <Text style={{ fontSize: FONTS.sm, fontWeight: selected ? '600' : '400', color: selected ? colors.text : colors.textSecondary }}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md, paddingVertical: SPACING.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderLight }} onPress={() => Linking.openURL('https://github.com/Chlgh/mianmian')}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.1)' }}><Text style={{ fontSize: 18 }}>📖</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: FONTS.md, fontWeight: '600', color: colors.primary }}>{t('guide.openSource')}</Text>
+                <Text style={{ fontSize: FONTS.sm, marginTop: 2, color: colors.textSecondary }}>{t('guide.openSourceDesc')}</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.tokenModalClose, { backgroundColor: colors.surfaceSecondary }]} onPress={closeSettings}>
+              <Text style={[styles.tokenModalCloseText, { color: colors.text }]}>{t('common.close')}</Text>
+            </TouchableOpacity>
+          </View>
+          </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
@@ -595,7 +671,7 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.sm },
   actionText: { fontSize: 10, fontWeight: '500' },
   modalContainer: { flex: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   tokenModal: { width: '85%', maxHeight: '70%', borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg },
   tokenModalTitle: { fontSize: FONTS.lg, fontWeight: '700', marginBottom: SPACING.md, textAlign: 'center' },
   tokenModalScroll: { maxHeight: 350 },

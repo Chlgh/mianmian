@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, BORDER_RADIUS, SPACING, SHADOWS } from '../theme';
+import { t } from '../i18n';
 import ModelTag from './ModelTag';
 
 const SummaryCard = ({ summary, responses, onCopy }) => {
@@ -19,7 +20,7 @@ const SummaryCard = ({ summary, responses, onCopy }) => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="document-text" size={20} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>AI 综合简报</Text>
+          <Text style={styles.headerTitle}>{t('summary.title')}</Text>
         </View>
         <TouchableOpacity onPress={onCopy} style={styles.copyBtn}>
           <Ionicons name="copy-outline" size={16} color={COLORS.textSecondary} />
@@ -35,21 +36,21 @@ const SummaryCard = ({ summary, responses, onCopy }) => {
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{responses.length}</Text>
-          <Text style={styles.statLabel}>模型总数</Text>
+          <Text style={styles.statLabel}>{t('summary.totalModels')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: COLORS.success }]}>
             {successfulResponses.length}
           </Text>
-          <Text style={styles.statLabel}>成功</Text>
+          <Text style={styles.statLabel}>{t('summary.success')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: COLORS.error }]}>
             {failedResponses.length}
           </Text>
-          <Text style={styles.statLabel}>失败</Text>
+          <Text style={styles.statLabel}>{t('summary.fail')}</Text>
         </View>
         {summary.responseStats?.fastestModel && (
           <>
@@ -58,7 +59,7 @@ const SummaryCard = ({ summary, responses, onCopy }) => {
               <Text style={styles.statValue} numberOfLines={1}>
                 {summary.responseStats.fastestModel}
               </Text>
-              <Text style={styles.statLabel}>最快</Text>
+              <Text style={styles.statLabel}>{t('summary.fastest')}</Text>
             </View>
           </>
         )}
@@ -70,7 +71,7 @@ const SummaryCard = ({ summary, responses, onCopy }) => {
         onPress={() => setExpanded(!expanded)}
       >
         <Text style={styles.toggleText}>
-          {expanded ? '收起各模型回复' : `查看各模型回复 (${successfulResponses.length})`}
+          {expanded ? t('summary.hideReplies') : t('summary.showReplies', { n: successfulResponses.length })}
         </Text>
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -90,7 +91,7 @@ const SummaryCard = ({ summary, responses, onCopy }) => {
               />
               <Text style={styles.modelResponseText}>{response.content}</Text>
               <Text style={styles.responseTime}>
-                ⏱ {(response.responseTime / 1000).toFixed(1)}秒
+                ⏱ {(response.responseTime / 1000).toFixed(1)}{t('common.unit.seconds')}
               </Text>
             </View>
           ))}
